@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Terms of Service: Labradoor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --purple: #6B5CE7;
+      --purple-dark: #403A86;
+      --navy: #2D3154;
+      --navy-dark: #1A1B2E;
+      --teal: #4ECDC4;
+      --text: #22253A;
+      --text-muted: #687087;
+      --line: rgba(45,49,84,0.08);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, #EEF0FF 0%, #FAFBFF 34%, #FFFFFF 100%);
+      min-height: 100vh;
+      line-height: 1.7;
+    }
+
+    a { color: var(--purple); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .container { 
+      width: min(800px, calc(100% - 48px)); 
+      margin: 0 auto; 
+    }
+
+    /* Header */
+    .header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      backdrop-filter: blur(18px);
+      background: rgba(255,255,255,0.75);
+      border-bottom: 1px solid rgba(45,49,84,0.06);
+    }
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 78px;
+      width: min(1200px, calc(100% - 48px));
+      margin: 0 auto;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+    }
+    .logo-img {
+      height: 32px;
+      width: auto;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px 28px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 15px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: linear-gradient(135deg, var(--purple) 0%, #8B7CF7 50%, #E056A0 100%);
+      color: white;
+      box-shadow: 0 16px 40px rgba(107, 92, 231, 0.25);
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      text-decoration: none;
+    }
+
+    /* Content */
+    .content {
+      padding: 140px 0 80px;
+    }
+    .page-title {
+      font-size: 42px;
+      font-weight: 800;
+      color: var(--navy-dark);
+      margin-bottom: 8px;
+      letter-spacing: -0.03em;
+    }
+    .effective-date {
+      font-size: 15px;
+      color: var(--text-muted);
+      margin-bottom: 48px;
+    }
+    .intro {
+      font-size: 17px;
+      color: var(--text);
+      margin-bottom: 48px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h2 {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--navy-dark);
+      margin: 48px 0 16px;
+      letter-spacing: -0.02em;
+    }
+    h3 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--navy);
+      margin: 32px 0 12px;
+    }
+    p {
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+    ul {
+      margin: 16px 0 16px 24px;
+      color: var(--text);
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    .legal-caps {
+      text-transform: uppercase;
+      font-size: 14px;
+      letter-spacing: 0.01em;
+    }
+
+    /* Footer */
+    .footer {
+      padding: 32px 0;
+      border-top: 1px solid var(--line);
+      background: rgba(255,255,255,0.5);
+    }
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      color: var(--text-muted);
+      width: min(1200px, calc(100% - 48px));
+      margin: 0 auto;
+    }
+    .footer a {
+      color: var(--text-muted);
+    }
+    .footer a:hover { color: var(--purple); text-decoration: none; }
+    .footer-links {
+      display: flex;
+      gap: 28px;
+    }
+
+    @media (max-width: 600px) {
+      .page-title { font-size: 32px; }
+      .footer-inner {
+        flex-direction: column;
+        gap: 20px;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a href="/" class="logo">
+        <img src="logo.png" alt="Labradoor" class="logo-img">
+      </a>
+      <a href="https://apps.apple.com/" class="btn">Download Free</a>
+    </div>
+  </header>
+
+  <main class="content">
+    <div class="container">
+      <h1 class="page-title">Terms of Service</h1>
+      <p class="effective-date">Effective Date: August 4, 2026 &middot; Last Updated: August 4, 2026</p>
+
+      <p class="intro">
+        These Terms of Service ("<strong>Terms</strong>") govern your access to and use of the Labradoor mobile application, website, browser extension, and related services (collectively, the "<strong>Services</strong>"), operated by <strong>Upside Technologies, LLC</strong> ("<strong>Labradoor</strong>," "<strong>we</strong>," "<strong>us</strong>," or "<strong>our</strong>").
+        <br><br>
+        <strong>Website:</strong> <a href="https://www.labradoor.ai">www.labradoor.ai</a><br>
+        <strong>Contact:</strong> <a href="mailto:hello@labradoor.ai">hello@labradoor.ai</a>
+        <br><br>
+        By creating an account, downloading the app, or using the Services, you agree to these Terms.
+        <br><br>
+        <strong>PLEASE NOTE:</strong> Section 14 contains a binding arbitration agreement and class action waiver that affect your legal rights. <strong>You have the right to opt out of arbitration within 30 days</strong> &mdash; see Section 14(F).
+      </p>
+
+      <h2>1. Eligibility</h2>
+      <p>You must be at least 18 years old and legally capable of entering into a binding agreement to use the Services.</p>
+
+      <h2>2. Account Registration</h2>
+      <p>To use Labradoor, you must create an account. You may register using:</p>
+      <ul>
+        <li>Email and password</li>
+        <li>Google sign-in</li>
+        <li>Apple sign-in</li>
+      </ul>
+      <p>You agree to provide accurate information and keep your login credentials secure. You are responsible for activities that occur under your account.</p>
+
+      <h2>3. Description of Services</h2>
+      <p>Labradoor is a home search and property insight tool designed to help users identify and evaluate properties. Features may include property lookup, saved properties, map-based functionality, camera-assisted property identification, and subscription-based premium features.</p>
+      <p>We may add, remove, or modify features at any time.</p>
+
+      <h2>4. Subscriptions, Automatic Renewal, and Billing</h2>
+      <p>Labradoor may offer paid subscriptions through Apple's App Store.</p>
+
+      <h3>A. Automatic Renewal Disclosure</h3>
+      <p><strong>SUBSCRIPTIONS AUTOMATICALLY RENEW.</strong> By purchasing a subscription, you acknowledge and agree that:</p>
+      <ul>
+        <li><strong>Your subscription will automatically renew</strong> at the end of each billing period (monthly or annual, as selected at purchase) <strong>for the same term and at the then-current price</strong>, and you authorize Apple to charge your Apple ID account on a recurring basis</li>
+        <li><strong>You will continue to be charged until you cancel.</strong> Renewal charges occur within 24 hours before the end of the current period</li>
+        <li><strong>To avoid being charged, you must cancel at least 24 hours before the end of the current billing period</strong></li>
+        <li>The subscription price, billing frequency, and any introductory or promotional pricing (including the price that will apply after any promotional period ends) are disclosed to you at the point of purchase before you complete the transaction</li>
+      </ul>
+
+      <h3>B. How to Cancel</h3>
+      <p><strong>You may cancel at any time</strong> through your Apple account settings: open the <strong>Settings</strong> app on your device &rarr; tap your name &rarr; <strong>Subscriptions</strong> &rarr; select Labradoor &rarr; <strong>Cancel Subscription</strong>. You may also manage subscriptions at <a href="https://apps.apple.com/account/subscriptions">apps.apple.com/account/subscriptions</a>.</p>
+      <p>Cancellation takes effect at the end of the current billing period. You retain access to paid features through the end of the period you have already paid for. If you need assistance canceling, contact <a href="mailto:hello@labradoor.ai">hello@labradoor.ai</a>.</p>
+
+      <h3>C. Price Changes</h3>
+      <p>We may change subscription prices. Any price increase will apply only to subsequent billing periods, and we (or Apple) will provide you advance notice and, where required by law, obtain your consent before the increase takes effect. If you do not agree to a price change, you may cancel before it takes effect.</p>
+
+      <h3>D. Refunds</h3>
+      <p>Refunds are handled by Apple under Apple's policies. You may request a refund at <a href="https://reportaproblem.apple.com">reportaproblem.apple.com</a>. We do not control Apple's billing systems, refund decisions, or subscription management interface.</p>
+      <p>Residents of certain states may have additional cancellation or refund rights under applicable law, and nothing in these Terms limits those rights.</p>
+
+      <h2>5. Acceptable Use</h2>
+      <p>You agree not to:</p>
+      <ul>
+        <li>Use the Services for any unlawful purpose</li>
+        <li>Interfere with or disrupt the Services</li>
+        <li>Attempt to gain unauthorized access to systems or accounts</li>
+        <li>Reverse engineer, decompile, or copy the app except as permitted by law</li>
+        <li>Use bots, scripts, or automated methods to abuse the Services</li>
+        <li>Submit false, misleading, or malicious content</li>
+        <li>Violate the rights of others, including privacy or intellectual property rights</li>
+      </ul>
+
+      <h2>6. Property Information Disclaimer</h2>
+      <p>Labradoor provides informational tools only.</p>
+      <p>We do not guarantee the accuracy, completeness, reliability, or timeliness of any:</p>
+      <ul>
+        <li>Property data</li>
+        <li>Listing information</li>
+        <li>Scores</li>
+        <li>Estimates</li>
+        <li>Map information</li>
+        <li>Saved results</li>
+        <li>Location-based results</li>
+        <li>Property identification results based on photos, address numbers, location, or orientation</li>
+      </ul>
+      <p>Real estate information may change quickly and may come from third-party sources or automated matching processes. You are solely responsible for independently verifying any information before making financial, legal, or real estate decisions.</p>
+      <p>Labradoor is not a real estate broker, lender, appraiser, attorney, or financial advisor.</p>
+
+      <h2>7. User Content</h2>
+      <p>You may submit information into the app, including property inputs, photos, saved properties, and support requests. You retain ownership of the information you provide, but you grant us a limited, non-exclusive license to use it as necessary to operate, improve, secure, and support the Services.</p>
+      <p>You agree not to submit content that is unlawful, infringing, harmful, or deceptive.</p>
+
+      <h2>8. Third-Party Services</h2>
+      <p>Labradoor may integrate with or rely on third-party services, including:</p>
+      <ul>
+        <li>Apple Sign In</li>
+        <li>Google Sign In</li>
+        <li>Google Maps</li>
+        <li>Supabase</li>
+        <li>Apple App Store purchase systems</li>
+      </ul>
+      <p>We are not responsible for third-party services, and your use of them may be subject to separate terms and privacy policies.</p>
+
+      <h2>9. Intellectual Property</h2>
+      <p>The Services, including the app, branding, logos, software, design, text, graphics, and related content, are owned by or licensed to Upside Technologies, LLC and are protected by intellectual property laws.</p>
+      <p>You may not use our intellectual property without our prior written permission, except as allowed by these Terms.</p>
+
+      <h2>10. Termination</h2>
+      <p>We may suspend or terminate your access to the Services at any time if:</p>
+      <ul>
+        <li>You violate these Terms</li>
+        <li>Your use creates legal, security, or operational risk</li>
+        <li>We discontinue the Services</li>
+      </ul>
+      <p>You may stop using the Services at any time by deleting the app and canceling any active subscription through Apple.</p>
+      <p>If you wish to delete your account and associated data, you may do so through the app or by contacting <a href="mailto:hello@labradoor.ai">hello@labradoor.ai</a>. Deleting the app alone does not automatically delete your account.</p>
+      <p>We may retain certain information where required or permitted by law, including for legal, security, fraud-prevention, billing, or compliance purposes.</p>
+
+      <h2>11. Disclaimer of Warranties</h2>
+      <p class="legal-caps">THE SERVICES ARE PROVIDED "AS IS" AND "AS AVAILABLE" TO THE MAXIMUM EXTENT PERMITTED BY LAW.</p>
+      <p class="legal-caps">WE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND THAT THE SERVICES WILL BE UNINTERRUPTED, ERROR-FREE, OR ACCURATE.</p>
+      <p><strong>Some states do not allow the exclusion of implied warranties, so the above exclusions may not apply to you. In such states, our warranties are limited to the minimum extent permitted by law, and you may have additional rights.</strong></p>
+
+      <h2>12. Limitation of Liability</h2>
+      <p class="legal-caps">TO THE MAXIMUM EXTENT PERMITTED BY LAW, UPSIDE TECHNOLOGIES, LLC AND ITS AFFILIATES, OFFICERS, EMPLOYEES, CONTRACTORS, AND SERVICE PROVIDERS WILL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR FOR ANY LOSS OF DATA, PROFITS, REVENUE, OR GOODWILL, ARISING OUT OF OR RELATED TO YOUR USE OF THE SERVICES.</p>
+      <p class="legal-caps">TO THE MAXIMUM EXTENT PERMITTED BY LAW, OUR TOTAL LIABILITY FOR ANY CLAIM ARISING OUT OF OR RELATING TO THE SERVICES WILL NOT EXCEED THE GREATER OF:</p>
+      <ul class="legal-caps">
+        <li>THE AMOUNT YOU PAID US THROUGH THE SERVICES IN THE 12 MONTHS BEFORE THE CLAIM, OR</li>
+        <li>$50 USD</li>
+      </ul>
+      <p><strong>Some states do not allow the exclusion or limitation of incidental or consequential damages, so the above limitations may not apply to you.</strong> Nothing in these Terms excludes or limits liability for fraud, fraudulent misrepresentation, gross negligence, willful misconduct, death or personal injury caused by negligence, or any other liability that cannot be excluded or limited under applicable law.</p>
+
+      <h2>13. Indemnification</h2>
+      <p>To the extent permitted by applicable law, you agree to defend, indemnify, and hold harmless Upside Technologies, LLC and its affiliates, officers, employees, contractors, and service providers from and against claims, liabilities, damages, losses, and expenses arising out of:</p>
+      <ul>
+        <li>Your use or misuse of the Services</li>
+        <li>Your violation of these Terms</li>
+        <li>Your violation of any law or third-party rights</li>
+      </ul>
+
+      <h2>14. Dispute Resolution and Arbitration</h2>
+      <p><strong>PLEASE READ THIS SECTION CAREFULLY. IT AFFECTS YOUR LEGAL RIGHTS, INCLUDING YOUR RIGHT TO FILE A LAWSUIT IN COURT AND TO HAVE A JURY TRIAL. YOU MAY OPT OUT OF ARBITRATION WITHIN 30 DAYS &mdash; SEE SECTION 14(F).</strong></p>
+
+      <h3>A. Informal Dispute Resolution First</h3>
+      <p>Before filing a claim, you and Labradoor agree to try to resolve the dispute informally. Send a written <strong>Notice of Dispute</strong> to <a href="mailto:legal@labradoor.ai">legal@labradoor.ai</a>, or by mail to Upside Technologies, LLC, 7241 McVay Manor Cove, Germantown, TN 38138, that includes your name, the email address associated with your account, a description of the dispute, and the relief you seek. We will send any Notice of Dispute to the email address associated with your account.</p>
+      <p>Both parties agree to negotiate in good faith for <strong>60 days</strong> after the Notice is received. Either party may request an individualized telephone or video settlement conference during this period. This informal process is a condition precedent to starting arbitration, and the applicable statute of limitations is tolled while it proceeds.</p>
+
+      <h3>B. Agreement to Arbitrate</h3>
+      <p>If the dispute is not resolved within 60 days, any dispute, claim, or controversy arising out of or relating to these Terms or the Services will be resolved by <strong>binding individual arbitration</strong> rather than in court. This agreement to arbitrate is governed by the <strong>Federal Arbitration Act</strong> and evidences a transaction involving interstate commerce.</p>
+      <p>The arbitrator, and not any federal, state, or local court, has exclusive authority to resolve disputes about the interpretation, applicability, enforceability, or formation of this arbitration agreement &mdash; except that a court has exclusive authority to decide the enforceability of the class action waiver in Section 14(E).</p>
+
+      <h3>C. Exceptions &mdash; Claims Not Subject to Arbitration</h3>
+      <p>The following are <strong>not</strong> subject to arbitration:</p>
+      <ul>
+        <li><strong>Small claims court.</strong> Either party may bring an individual claim in small claims court if it qualifies under that court's rules</li>
+        <li><strong>Intellectual property.</strong> Either party may seek injunctive or other equitable relief in court to protect intellectual property rights</li>
+        <li><strong>Public injunctive relief.</strong> Claims for public injunctive relief may be brought in court. This carve-out is not severable &mdash; if it is found unenforceable, the entire arbitration agreement in Section 14(B) is void</li>
+        <li>Any claim that applicable law provides cannot be compelled to arbitration</li>
+      </ul>
+
+      <h3>D. Arbitration Rules, Forum, and Fees</h3>
+      <p>Arbitration will be administered by the <strong>American Arbitration Association (AAA)</strong> under its <strong>Consumer Arbitration Rules</strong>, available at <a href="https://www.adr.org">www.adr.org</a>. If the AAA is unavailable, the parties will agree on an alternative administrator or a court will appoint one.</p>
+      <p><strong>Location.</strong> You may choose to have the arbitration conducted (i) by telephone or video conference, (ii) based solely on written submissions, or (iii) in person in the county where you reside or another mutually agreed location. <strong>We will not require you to travel to Tennessee.</strong></p>
+      <p><strong>Fees.</strong> Payment of filing, administration, and arbitrator fees is governed by the AAA Consumer Arbitration Rules. <strong>For any claim where you seek $10,000 or less, we will pay all AAA filing, administration, and arbitrator fees</strong>, unless the arbitrator determines your claim is frivolous. If you are unable to afford the fees, we will pay them on your behalf upon request.</p>
+      <p><strong>California users:</strong> Consistent with California Code of Civil Procedure Sections 1281.97 and 1281.98, we will pay all fees and costs required to initiate and continue the arbitration <strong>within 30 days of the due date</strong>. If we fail to do so, we are in material breach, and you may &mdash; at your option &mdash; withdraw the claim from arbitration and proceed in court, or compel arbitration with us paying all related fees, and may seek applicable sanctions.</p>
+      <p>The arbitrator may award any relief that a court could award to an individual, and may award attorneys' fees and costs to the extent authorized by law. The arbitrator's award is final and binding, and judgment may be entered in any court of competent jurisdiction.</p>
+
+      <h3>E. Class Action and Jury Trial Waiver</h3>
+      <p class="legal-caps">YOU AND LABRADOOR AGREE THAT EACH MAY BRING CLAIMS AGAINST THE OTHER ONLY IN AN INDIVIDUAL CAPACITY, AND NOT AS A PLAINTIFF OR CLASS MEMBER IN ANY PURPORTED CLASS, COLLECTIVE, CONSOLIDATED, OR REPRESENTATIVE PROCEEDING. THE ARBITRATOR MAY NOT CONSOLIDATE MORE THAN ONE PERSON'S CLAIMS.</p>
+      <p class="legal-caps">YOU AND LABRADOOR WAIVE ANY RIGHT TO A JURY TRIAL.</p>
+      <p>If this class action waiver is found unenforceable as to a particular claim or request for relief, that claim or request will be severed and proceed in a court of competent jurisdiction, while all other claims proceed in arbitration.</p>
+
+      <h3 id="arbitration-optout">F. Your Right to Opt Out of Arbitration (30 Days)</h3>
+      <p><strong>You may opt out of this arbitration agreement and the class action waiver.</strong> To do so, send written notice within <strong>30 days</strong> of first accepting these Terms (or of the date we notify you of a material change to this Section 14) to:</p>
+      <p><strong>Email:</strong> <a href="mailto:legal@labradoor.ai">legal@labradoor.ai</a> with the subject line <strong>"Arbitration Opt-Out."</strong></p>
+      <p>Include your name and the email address associated with your account, and state clearly that you wish to opt out of arbitration. Opting out will <strong>not</strong> affect your account, your subscription, or any other part of your relationship with Labradoor. If you opt out, disputes will be resolved in court as described in Section 15.</p>
+
+      <h3>G. Severability and Survival</h3>
+      <p>Except as stated in Section 14(C) regarding public injunctive relief and Section 14(E) regarding the class action waiver, if any portion of this Section 14 is found unenforceable, the remaining portions remain in effect. This Section 14 survives termination of these Terms and closure of your account.</p>
+
+      <h2>15. Governing Law and Venue</h2>
+      <p>These Terms are governed by the laws of the State of <strong>Tennessee</strong>, without regard to conflict of law principles, except to the extent preempted by the Federal Arbitration Act.</p>
+      <p><strong>Nothing in this section deprives you of the protection of the mandatory consumer protection laws of the state in which you reside.</strong> If you are a consumer, you may bring claims in, and remain entitled to the protections of, the courts and laws of your state of residence to the extent those rights cannot be waived by contract.</p>
+      <p>For any dispute not subject to arbitration and not covered by the paragraph above, the parties consent to the exclusive jurisdiction of the state and federal courts located in Tennessee.</p>
+
+      <h2>16. Apple-Specific Terms</h2>
+      <p>If you access Labradoor through the Apple App Store, you acknowledge and agree that:</p>
+      <ul>
+        <li>These Terms are between you and Upside Technologies, LLC, not Apple</li>
+        <li>Apple is not responsible for the app or its content</li>
+        <li>Apple has no obligation to provide maintenance or support for the app</li>
+        <li>In the event the app fails to conform to any applicable warranty, you may notify Apple and Apple will refund the purchase price; to the maximum extent permitted by law, Apple has no other warranty obligation with respect to the app</li>
+        <li>Apple is not responsible for addressing claims relating to the app, including product liability, legal compliance, or intellectual property claims</li>
+        <li>Apple and its subsidiaries are third-party beneficiaries of these Terms and may enforce them against you</li>
+      </ul>
+
+      <h2>17. Copyright Complaints (DMCA)</h2>
+      <p>We respect intellectual property rights. If you believe content on the Services infringes your copyright, send a notice to our designated agent containing: (i) your physical or electronic signature; (ii) identification of the copyrighted work claimed to be infringed; (iii) identification of the material claimed to be infringing and its location; (iv) your contact information; (v) a statement that you have a good-faith belief the use is not authorized; and (vi) a statement, under penalty of perjury, that the information is accurate and you are authorized to act on the owner's behalf.</p>
+      <p><strong>DMCA Agent:</strong><br>
+      Upside Technologies, LLC<br>
+      7241 McVay Manor Cove<br>
+      Germantown, TN 38138<br>
+      <a href="mailto:legal@labradoor.ai">legal@labradoor.ai</a></p>
+      <p>We may remove allegedly infringing material and terminate the accounts of repeat infringers. If you believe material was removed in error, you may submit a counter-notice to the same address.</p>
+
+      <h2>18. Notice to California Users</h2>
+      <p>Under California Civil Code Section 1789.3, California users are entitled to the following notice: The Complaint Assistance Unit of the Division of Consumer Services of the California Department of Consumer Affairs may be contacted in writing at 1625 North Market Blvd., Suite N 112, Sacramento, CA 95834, or by telephone at (800) 952-5210.</p>
+
+      <h2>19. Feedback</h2>
+      <p>If you send us suggestions, ideas, or feedback about the Services, you grant us a perpetual, irrevocable, worldwide, royalty-free license to use and incorporate it without obligation or compensation to you. You are not required to provide feedback.</p>
+
+      <h2>20. General Provisions</h2>
+      <h3>A. Severability</h3>
+      <p>If any provision of these Terms is held invalid or unenforceable, that provision will be limited or eliminated to the minimum extent necessary, and the remaining provisions will remain in full force and effect.</p>
+      <h3>B. Entire Agreement</h3>
+      <p>These Terms, together with the <a href="privacy">Privacy Policy</a>, constitute the entire agreement between you and Upside Technologies, LLC regarding the Services and supersede all prior agreements on that subject.</p>
+      <h3>C. Assignment</h3>
+      <p>You may not assign or transfer these Terms without our prior written consent. We may assign these Terms in connection with a merger, acquisition, reorganization, or sale of assets, or by operation of law.</p>
+      <h3>D. No Waiver</h3>
+      <p>Our failure to enforce any provision is not a waiver of our right to do so later. A waiver is effective only if in writing and signed by an authorized representative.</p>
+      <h3>E. Force Majeure</h3>
+      <p>We are not liable for any delay or failure to perform resulting from causes beyond our reasonable control, including acts of God, natural disasters, war, terrorism, labor disputes, governmental action, power or internet failures, or third-party service outages.</p>
+      <h3>F. Electronic Communications and Notices</h3>
+      <p>You consent to receive communications from us electronically, including by email and in-app notice, and agree that electronic communications satisfy any legal requirement that a communication be in writing. Notices to you will be sent to the email address associated with your account. Notices to us should be sent to <a href="mailto:legal@labradoor.ai">legal@labradoor.ai</a>.</p>
+      <h3>G. Survival</h3>
+      <p>Sections concerning property information disclaimers, user content, intellectual property, disclaimers, limitation of liability, indemnification, dispute resolution and arbitration, governing law, and these general provisions survive termination of these Terms.</p>
+      <h3>H. Relationship of the Parties</h3>
+      <p>No agency, partnership, joint venture, employment, or franchise relationship is created by these Terms. Except as expressly stated (including Apple's rights in Section 16), there are no third-party beneficiaries.</p>
+
+      <h2>21. Changes to These Terms</h2>
+      <p>We may update these Terms from time to time. If we make material changes, we will update the Effective Date above and provide reasonable advance notice, such as by email or in-app notice. Material changes will not apply retroactively and will become effective no sooner than the date stated in the notice. Your continued use of the Services after changes become effective means you accept the updated Terms. If you do not agree, you must stop using the Services and may cancel your subscription and delete your account.</p>
+      <p>If we materially change Section 14 (Dispute Resolution and Arbitration), you will have 30 days from the notice to opt out of arbitration as described in Section 14(F).</p>
+
+      <h2>22. Contact</h2>
+      <p>If you have questions about these Terms, contact:</p>
+      <p>
+        <strong>Upside Technologies, LLC</strong><br>
+        7241 McVay Manor Cove<br>
+        Germantown, TN 38138<br>
+        <a href="https://www.labradoor.ai">www.labradoor.ai</a><br>
+        Legal notices: <a href="mailto:legal@labradoor.ai">legal@labradoor.ai</a><br>
+        General: <a href="mailto:hello@labradoor.ai">hello@labradoor.ai</a>
+      </p>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div>© 2026 Labradoor. Property intelligence for everyone.</div>
+      <div class="footer-links">
+        <a href="contact">Contact</a>
+        <a href="privacy">Privacy</a>
+        <a href="terms">Terms</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

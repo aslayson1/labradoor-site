@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Labradoor: Retrieve Hidden Property Info Instantly</title>
+  <meta name="description" content="Point your phone at any house. Get instant property intelligence: motivation scores, equity data, owner info, and investment analysis. Data that was only available to professionals, now in your pocket." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --purple: #6B5CE7;
+      --purple-dark: #403A86;
+      --purple-light: #8B7CF7;
+      --navy: #2D3154;
+      --navy-dark: #1A1B2E;
+      --navy-mid: #30345E;
+      --teal: #4ECDC4;
+      --teal-dark: #3BA99E;
+      --pink: #E056A0;
+      --lavender: #C77DFF;
+      --coral: #FF6B6B;
+      --gold: #F4B942;
+      --text: #22253A;
+      --text-muted: #687087;
+      --line: rgba(45,49,84,0.08);
+      --surface: #ffffff;
+      --surface-soft: #F6F7FD;
+      --shadow: 0 20px 60px rgba(26,27,46,0.12);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 16px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(199,125,255,.18), transparent 35%),
+        radial-gradient(circle at 85% 15%, rgba(78,205,196,.15), transparent 25%),
+        radial-gradient(circle at 50% 80%, rgba(107,92,231,.08), transparent 40%),
+        linear-gradient(180deg, #EEF0FF 0%, #FAFBFF 34%, #FFFFFF 100%);
+      min-height: 100vh;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .container { 
+      width: min(1200px, calc(100% - 48px)); 
+      margin: 0 auto; 
+    }
+
+    /* Header */
+    .header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      backdrop-filter: blur(18px);
+      background: rgba(255,255,255,0.75);
+      border-bottom: 1px solid rgba(45,49,84,0.06);
+    }
+    .header-inner {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      height: 96px;
+      width: min(1400px, calc(100% - 24px));
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      padding-left: 24px;
+    }
+    .nav { justify-self: center; }
+    .header-actions { justify-self: end; }
+    .logo-img {
+      height: 64px;
+      width: auto;
+    }
+    .logo-icon {
+      font-size: 28px;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .store-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 16px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--purple) 0%, var(--purple-light) 50%, var(--pink) 100%);
+      color: #fff;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .store-badge:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.2);
+    }
+    .store-badge svg {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+    .store-badge-icon {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+      border-radius: 5px;
+    }
+    .store-badge .store-badge-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+    }
+    .store-badge .store-badge-text span {
+      font-size: 10px;
+      font-weight: 400;
+      opacity: 0.85;
+    }
+    .store-badge .store-badge-text strong {
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+    .nav a {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text-muted);
+      transition: color 0.2s;
+    }
+    .nav a:hover { color: var(--purple); }
+    .login-link {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--navy);
+      padding: 8px 4px;
+    }
+    .login-link:hover { color: var(--purple); }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px 28px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 15px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--purple) 0%, var(--purple-light) 50%, var(--pink) 100%);
+      color: white;
+      box-shadow: 0 16px 40px rgba(107, 92, 231, 0.25);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 20px 50px rgba(107, 92, 231, 0.35);
+    }
+    .btn-large {
+      padding: 18px 36px;
+      font-size: 16px;
+    }
+    .btn svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    /* Hero */
+    .hero {
+      padding: 140px 0 100px;
+      position: relative;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 60px;
+      align-items: center;
+    }
+    .hero h1 {
+      font-size: clamp(44px, 5.5vw, 72px);
+      line-height: 1.0;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      color: var(--navy-dark);
+      margin-bottom: 24px;
+    }
+    .hero h1 .gradient-text {
+      background: linear-gradient(135deg, var(--pink) 0%, var(--purple) 50%, var(--teal) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-subtitle {
+      font-size: 19px;
+      line-height: 1.7;
+      color: var(--text-muted);
+      margin-bottom: 36px;
+      max-width: 520px;
+    }
+    .hero-subtitle strong {
+      color: var(--navy);
+      font-weight: 600;
+    }
+    .hero-cta {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 48px;
+    }
+
+    /* Hero Visual */
+    .hero-visual {
+      position: relative;
+      min-height: 680px;
+    }
+    .glow {
+      position: absolute;
+      inset: 40px 20px 80px 20px;
+      border-radius: 42px;
+      background: 
+        radial-gradient(circle at 30% 25%, rgba(107,92,231,.25), transparent 45%),
+        radial-gradient(circle at 75% 60%, rgba(224,86,160,.18), transparent 40%),
+        radial-gradient(circle at 55% 35%, rgba(78,205,196,.15), transparent 35%);
+      filter: blur(30px);
+    }
+    .phone {
+      position: absolute;
+      width: 320px;
+      right: 40px;
+      top: 40px;
+      background: white;
+      border-radius: 40px;
+      padding: 10px;
+      box-shadow: var(--shadow), 0 40px 80px rgba(26,27,46,0.15);
+      border: 1px solid rgba(255,255,255,0.9);
+    }
+    .phone-screen {
+      background: linear-gradient(180deg, #F8F9FF 0%, #FFFFFF 100%);
+      border-radius: 32px;
+      overflow: hidden;
+      aspect-ratio: 9/19;
+    }
+    .phone-notch {
+      width: 120px;
+      height: 28px;
+      background: #1A1B2E;
+      border-radius: 0 0 16px 16px;
+      margin: 0 auto;
+    }
+    .phone-content {
+      padding: 16px;
+    }
+
+    /* Camera UI Mock - Dark theme matching app */
+    .camera-mock {
+      position: relative;
+      background: #1A1B2E;
+      border-radius: 12px;
+      aspect-ratio: 9/16;
+      margin-bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      overflow: hidden;
+    }
+    .camera-scanner-box {
+      width: 120px;
+      height: 120px;
+      border: 2px dashed rgba(255,255,255,0.3);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .camera-house-icon {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .camera-house-icon svg {
+      width: 44px;
+      height: 44px;
+      fill: none;
+      stroke: rgba(255,255,255,0.5);
+      stroke-width: 1.5;
+    }
+    .camera-text-group {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .camera-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 4px;
+    }
+    .camera-subtitle {
+      font-size: 11px;
+      color: rgba(255,255,255,0.5);
+    }
+    .camera-shutter-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .camera-shutter {
+      width: 56px;
+      height: 56px;
+      background: transparent;
+      border: 3px solid white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .camera-shutter-inner {
+      width: 44px;
+      height: 44px;
+      background: white;
+      border-radius: 50%;
+    }
+    .camera-free-scans {
+      font-size: 10px;
+      color: rgba(255,255,255,0.4);
+    }
+    .camera-top {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .camera-flash {
+      width: 32px;
+      height: 32px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+    .camera-badge {
+      padding: 5px 12px;
+      background: var(--purple);
+      border-radius: 100px;
+      font-size: 10px;
+      font-weight: 700;
+      color: white;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .phone-tab-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #1A1B2E;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding: 10px 16px 16px;
+      display: flex;
+      justify-content: space-around;
+      border-radius: 0 0 32px 32px;
+    }
+    .tab-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .tab-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+    .tab-icon.active {
+      background: var(--purple);
+    }
+    .tab-label {
+      font-size: 9px;
+      color: rgba(255,255,255,0.4);
+    }
+    .tab-label.active {
+      color: white;
+    }
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .camera-flash {
+      width: 32px;
+      height: 32px;
+      background: rgba(255,255,255,0.9);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .camera-badge {
+      padding: 5px 12px;
+      background: var(--teal);
+      border-radius: 100px;
+      font-size: 10px;
+      font-weight: 700;
+      color: white;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .camera-crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 140px;
+      height: 80px;
+      border: 2px solid var(--purple);
+      border-radius: 8px;
+      opacity: 0.6;
+    }
+    .camera-hint {
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .camera-shutter {
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(135deg, var(--purple), var(--pink));
+      border-radius: 50%;
+      margin: 0 auto;
+      box-shadow: 0 0 0 4px rgba(107,92,231,0.2);
+    }
+
+    /* Result card */
+    .result-preview {
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 0 8px 24px rgba(45,49,84,0.08);
+    }
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .result-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--purple), var(--teal));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+    .result-address {
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--navy);
+    }
+    .result-city {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    .result-score {
+      margin-left: auto;
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, rgba(78,205,196,0.15), rgba(78,205,196,0.05));
+      border: 2px solid var(--teal);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 12px;
+      color: var(--teal-dark);
+    }
+    .result-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .result-tag {
+      padding: 3px 8px;
+      border-radius: 100px;
+      font-size: 9px;
+      font-weight: 700;
+    }
+    .result-tag.teal { background: rgba(78,205,196,0.12); color: var(--teal-dark); }
+    .result-tag.purple { background: rgba(107,92,231,0.12); color: var(--purple-dark); }
+    .result-tag.gold { background: rgba(244,185,66,0.15); color: #B8860B; }
+
+    /* Floating cards */
+    .float-card {
+      position: absolute;
+      background: white;
+      border: 1px solid rgba(255,255,255,0.9);
+      border-radius: 20px;
+      padding: 18px 22px;
+      box-shadow: var(--shadow);
+      animation: float 6s ease-in-out infinite;
+      z-index: 10;
+    }
+    .float-card::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 21px;
+      background: linear-gradient(135deg, rgba(107,92,231,0.2), rgba(78,205,196,0.15), rgba(224,86,160,0.1));
+      z-index: -1;
+      filter: blur(12px);
+      opacity: 0.6;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+    .float-card-1 {
+      top: 80px;
+      left: 0;
+      animation-delay: 0s;
+    }
+    .float-card-2 {
+      bottom: 180px;
+      left: 100px;
+      animation-delay: 2s;
+    }
+    .float-card-3 {
+      top: 50%;
+      right: -10px;
+      animation-delay: 4s;
+    }
+    .float-icon {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+    .float-title {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--navy);
+      margin-bottom: 2px;
+    }
+    .float-value {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .float-value.teal { color: var(--teal-dark); font-weight: 600; }
+    .float-value.purple { color: var(--purple); font-weight: 600; }
+    .float-value.gold { color: #B8860B; font-weight: 600; }
+
+    /* Section styling */
+    .section {
+      padding: 100px 0;
+    }
+    .section-header {
+      text-align: center;
+      max-width: 700px;
+      margin: 0 auto 64px;
+    }
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: linear-gradient(135deg, rgba(107,92,231,0.1), rgba(78,205,196,0.08));
+      border: 1px solid rgba(107,92,231,0.15);
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--purple-dark);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 20px;
+    }
+    .section-header h2 {
+      font-size: clamp(32px, 4vw, 50px);
+      line-height: 1.1;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--navy-dark);
+      margin-bottom: 16px;
+      white-space: nowrap;
+    }
+    .section-header p {
+      font-size: 18px;
+      color: var(--text-muted);
+      line-height: 1.65;
+    }
+
+    /* Data cards */
+    .data-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .data-card {
+      background: rgba(255,255,255,0.85);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      padding: 28px;
+      box-shadow: 0 10px 30px rgba(45,49,84,0.05);
+      transition: all 0.3s ease;
+    }
+    .data-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 50px rgba(45,49,84,0.1);
+      background: white;
+    }
+    .data-card.featured {
+      grid-column: span 2;
+      background: linear-gradient(135deg, rgba(107,92,231,0.06), rgba(78,205,196,0.04));
+      border-color: rgba(107,92,231,0.15);
+    }
+    .data-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      margin-bottom: 20px;
+    }
+    .data-icon.purple { background: linear-gradient(135deg, rgba(107,92,231,0.15), rgba(107,92,231,0.08)); }
+    .data-icon.teal { background: linear-gradient(135deg, rgba(78,205,196,0.15), rgba(78,205,196,0.08)); }
+    .data-icon.gold { background: linear-gradient(135deg, rgba(244,185,66,0.2), rgba(244,185,66,0.1)); }
+    .data-icon.pink { background: linear-gradient(135deg, rgba(224,86,160,0.15), rgba(224,86,160,0.08)); }
+    .data-card h3 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 10px;
+    }
+    .data-card p {
+      font-size: 15px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Feature checklist */
+    .feature-list {
+      list-style: none;
+      margin-top: 24px;
+    }
+    .feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 15px;
+      color: var(--navy);
+    }
+    .feature-list li:last-child { border-bottom: none; }
+    .feature-check {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--purple), var(--teal));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 11px;
+      color: white;
+    }
+
+    /* Tiers / plans */
+    .tier-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+    .tier-card {
+      background: rgba(255,255,255,0.85);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      padding: 36px 32px;
+      box-shadow: 0 10px 30px rgba(45,49,84,0.05);
+      transition: all 0.3s ease;
+    }
+    .tier-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 50px rgba(45,49,84,0.1);
+      background: white;
+    }
+    .tier-card.featured {
+      background: linear-gradient(135deg, rgba(107,92,231,0.06), rgba(78,205,196,0.04));
+      border: 2px solid var(--purple);
+    }
+    .tier-badge {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: white;
+      background: linear-gradient(135deg, var(--purple), var(--pink));
+      margin-bottom: 16px;
+    }
+    .tier-name {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--navy-dark);
+      margin-bottom: 6px;
+    }
+    .tier-for {
+      font-size: 15px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+    .tier-price {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--purple-dark);
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 4px;
+    }
+    .tier-price span { color: var(--text-muted); font-weight: 500; }
+    .tier-card .feature-list { margin-top: 8px; margin-bottom: 28px; }
+    .tier-card .btn { width: 100%; }
+
+    /* CTA */
+    .cta {
+      padding: 120px 0;
+      text-align: center;
+      position: relative;
+    }
+    .cta-card {
+      background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy-mid) 100%);
+      border-radius: var(--radius-xl);
+      padding: 80px 60px;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-card::before {
+      content: '';
+      position: absolute;
+      top: -100px; right: -100px;
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(107,92,231,0.3), transparent 60%);
+    }
+    .cta-card::after {
+      content: '';
+      position: absolute;
+      bottom: -100px; left: -100px;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(78,205,196,0.2), transparent 60%);
+    }
+    .cta-logo {
+      margin-bottom: 24px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .cta-logo-img {
+      height: 48px;
+      width: auto;
+    }
+    .cta h2 {
+      font-size: clamp(36px, 5vw, 52px);
+      line-height: 1.1;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: white;
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .cta p {
+      font-size: 18px;
+      color: rgba(255,255,255,0.75);
+      max-width: 500px;
+      margin: 0 auto 36px;
+      position: relative;
+    }
+    .cta-buttons {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      position: relative;
+    }
+    .btn-cta {
+      background: white;
+      color: var(--navy-dark);
+    }
+    .btn-cta:hover {
+      background: var(--teal);
+      color: white;
+    }
+
+    /* Footer */
+    /* Dark, matching the CTA card just above it — the white-wordmark logo
+       needs a dark background to read at all, and this keeps the two
+       adjoining sections feeling like one intentional close to the page
+       rather than a light footer bolted under a dark section. */
+    .footer {
+      padding: 32px 0;
+      background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy-mid) 100%);
+    }
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      color: rgba(255,255,255,0.55);
+    }
+    .footer a {
+      color: rgba(255,255,255,0.7);
+      transition: color 0.2s;
+    }
+    .footer a:hover { color: white; }
+    .footer-links {
+      display: flex;
+      gap: 28px;
+    }
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+    .footer-logo {
+      height: 34px;
+      width: auto;
+      flex-shrink: 0;
+    }
+
+    /* Responsive */
+    /* Feature stories — real app screenshots paired with the payoff */
+    /* Flex, not a 2-column grid. The screenshots vary in width (244–310px
+       after the height cap), so in equal 1fr columns a narrow image could
+       only ever be centered-in-its-column (huge gap to the text) or pinned
+       to one edge (dead space on the outside, block reads off-center).
+       Sizing the shot to its own width and centering the whole row means the
+       gap is exactly the gap, and leftover space splits evenly both sides. */
+    .story {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(48px, 7vw, 120px);
+    }
+    .story + .story {
+      margin-top: clamp(88px, 10vw, 140px);
+    }
+    /* hero-intro carries the section's whole opening statement (heading +
+       subtext, no separate section-header) and the richest screenshot (6
+       live callouts) — sized up slightly from the other stories so it reads
+       as the section's anchor rather than just another item in the list. */
+    .hero-intro .story-shot img { max-width: 340px; }
+    /* Explicit per-story side, not nth-child — the position of each .story
+       among its siblings has shifted twice already as sections were added,
+       removed, and restructured, silently flipping every side each time.
+       .shot-right is applied directly in the markup on the stories that
+       need the phone on the right; everything else defaults to phone-left. */
+    .story.shot-right .story-shot { order: 2; }
+
+    .story-shot {
+      flex: 0 0 auto;          /* exactly as wide as the phone itself */
+      display: flex;
+      position: relative;
+    }
+    .story-copy {
+      flex: 0 1 600px;         /* consistent measure across every story */
+    }
+    /* Soft bloom behind the device, tinted per feature via --glow */
+    .story-shot::before {
+      content: "";
+      position: absolute;
+      inset: 8% 12%;
+      background: var(--glow, radial-gradient(circle, rgba(107,92,231,0.28), transparent 68%));
+      filter: blur(56px);
+      z-index: 0;
+    }
+    .story-shot img {
+      position: relative;
+      z-index: 1;
+      /* Source screenshots range from ~1.2:1 to ~2.3:1 — capping height (not
+         just width) keeps every phone a similar visual size. Without this, a
+         tall screenshot vertically centered in its row could extend above the
+         fixed header or below the fold, since align-items:center on a row
+         taller than the viewport always puts SOME of the tall column
+         off-screen wherever you scroll to. */
+      width: auto;
+      /* Deliberately a definite length, NOT min(310px, 100%). Inside a flex
+         item the containing block is indefinite while intrinsic size is being
+         resolved, so a percentage here can't resolve and the browser derives
+         the width from max-height instead (560 x 640/760 = 472px) — making
+         the shot's flex box far wider than the phone and knocking the row
+         off-center. Small screens are handled in the stacked media query. */
+      max-width: 310px;
+      height: auto;
+      max-height: 560px;
+      border-radius: 34px;
+      filter: drop-shadow(0 30px 60px rgba(26,27,46,0.22));
+    }
+    /* The "scan" screenshot's callout bubbles overflow past the phone bezel,
+       so unlike the other four shots it can't be cropped tight to the device
+       — it carries a sliver of its own light background on the LEFT and
+       RIGHT (where the callouts pushed the crop out), which doesn't exactly
+       match the page background and reads as a rectangle. Top/bottom have
+       almost no margin (the bezel nearly touches those edges already), so
+       only the sides are feathered — fading vertically too would clip into
+       the status bar and home indicator. */
+    .story-shot.loose img {
+      -webkit-mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
+      mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
+    }
+
+    .story-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      background: linear-gradient(135deg, rgba(107,92,231,0.1), rgba(78,205,196,0.08));
+      border: 1px solid rgba(107,92,231,0.15);
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--purple-dark);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 18px;
+    }
+    /* hero-intro uses <h2> (it's the section's real heading, not a sub-story)
+       — same visual treatment as h3, just semantically correct. */
+    .story-copy h3, .story-copy h2 {
+      font-size: clamp(28px, 3.4vw, 42px);
+      line-height: 1.12;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--navy-dark);
+      margin-bottom: 16px;
+    }
+    .story-lede {
+      font-size: 17px;
+      line-height: 1.65;
+      color: var(--text-muted);
+      margin-bottom: 26px;
+    }
+    .story-copy .feature-list { margin-bottom: 26px; }
+
+    /* Concrete numbers pulled straight from the screenshot beside them */
+    .proof {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .proof-stat {
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.75);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 8px 20px rgba(45,49,84,0.05);
+    }
+    .proof-stat strong {
+      display: block;
+      font-size: 19px;
+      font-weight: 800;
+      color: var(--purple-dark);
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+    }
+    .proof-stat span {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    @media (max-width: 1100px) {
+      .data-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .data-card.featured {
+        grid-column: span 2;
+      }
+    }
+    @media (max-width: 968px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+        gap: 60px;
+      }
+      .hero-visual {
+        order: -1;
+        min-height: 500px;
+      }
+      .phone {
+        position: relative;
+        margin: 0 auto;
+        right: auto;
+        top: auto;
+      }
+      .glow {
+        inset: 20px;
+      }
+      .float-card {
+        display: none;
+      }
+      .nav {
+        display: none;
+      }
+      .data-grid, .tier-grid {
+        grid-template-columns: 1fr;
+      }
+      /* Stack stories with the screenshot always leading, regardless of side */
+      .story {
+        flex-direction: column;
+        gap: 40px;
+      }
+      .story:nth-child(even) .story-shot { order: -1; }
+      .story-shot { order: -1; }
+      .story-copy { flex: 1 1 auto; max-width: 100%; text-align: left; }
+      /* Stacked column gives a definite containing block, so % is safe here
+         and keeps the phone inside very narrow viewports. */
+      .story-shot img { max-width: min(310px, 100%); }
+      .data-card.featured {
+        grid-column: auto;
+      }
+    }
+    @media (max-width: 600px) {
+      /* Section headings are pinned to one line on desktop for looks, but at
+         phone widths that forced the whole page into horizontal scroll
+         ("Take home search by the horns." alone is ~475px at 32px). */
+      .section-header h2 {
+        white-space: normal;
+      }
+      .hero-cta, .cta-buttons {
+        flex-direction: column;
+      }
+      .footer-inner {
+        flex-direction: column;
+        gap: 20px;
+        text-align: center;
+      }
+      .footer-brand {
+        flex-direction: column;
+        gap: 12px;
+      }
+      .footer-links {
+        justify-content: center;
+      }
+      .cta-card {
+        padding: 60px 32px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container header-inner">
+      <a href="#" class="logo">
+        <img src="logo.png" alt="Labradoor" class="logo-img">
+      </a>
+      <nav class="nav">
+        <a href="#data">Features</a>
+        <a href="#plans">Plans</a>
+        <a href="contact">Contact</a>
+      </nav>
+      <div class="header-actions">
+        <a href="https://apps.apple.com/" class="store-badge">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          <span class="store-badge-text"><span>Download on the</span><strong>App Store</strong></span>
+        </a>
+        <a href="#" class="store-badge">
+          <img src="chrome-icon.png" alt="Chrome" class="store-badge-icon">
+          <span class="store-badge-text"><span>Get it on</span><strong>Chrome Web Store</strong></span>
+        </a>
+        <a href="https://app.labradoor.ai/auth" class="login-link">Log In</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="container">
+        <div class="hero-grid">
+          <div class="hero-content">
+            <h1>
+              <span style="color:#303452">Snap a Home.</span><br><span class="gradient-text">Retrieve hidden property info instantly.</span>
+            </h1>
+            <p class="hero-subtitle">
+              Stand in front of any house and instantly see what others can't: <strong>motivation scores, equity data, owner portfolios, and investment analysis.</strong> Data that was only available to professional investors, now in your pocket.
+            </p>
+            <div class="hero-cta">
+              <a href="https://apps.apple.com/" class="btn btn-primary btn-large">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+                Download for iOS
+              </a>
+            </div>
+          </div>
+
+          <div class="hero-visual">
+            <div class="glow"></div>
+            
+            <!-- Floating cards -->
+            <div class="float-card float-card-1">
+              <div class="float-icon">🎯</div>
+              <div class="float-title">Motivation Score</div>
+              <div class="float-value teal">High: 82/100</div>
+            </div>
+            <div class="float-card float-card-2">
+              <div class="float-icon">💎</div>
+              <div class="float-title">Owner Equity</div>
+              <div class="float-value purple">45% of value</div>
+            </div>
+            <div class="float-card float-card-3">
+              <div class="float-icon">🏘️</div>
+              <div class="float-title">Portfolio</div>
+              <div class="float-value gold">Owns 4 properties</div>
+            </div>
+
+            <div class="phone">
+              <div class="phone-screen">
+                <div class="phone-notch"></div>
+                <div class="phone-content">
+                  <!-- Camera UI matching actual app -->
+                  <div class="camera-mock">
+                    <div class="camera-top">
+                      <div class="camera-flash">⚡</div>
+                      <div class="camera-badge">Pro</div>
+                    </div>
+                    
+                    <div class="camera-scanner-box">
+                      <div class="camera-house-icon">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M3 10.5L12 3L21 10.5V20C21 20.5 20.5 21 20 21H4C3.5 21 3 20.5 3 20V10.5Z" stroke-linecap="round" stroke-linejoin="round"/>
+                          <path d="M9 21V13H15V21" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </div>
+                    </div>
+                    
+                    <div class="camera-text-group">
+                      <div class="camera-title">Snap a Home</div>
+                      <div class="camera-subtitle">Point your camera at any property</div>
+                    </div>
+                    
+                    <div class="camera-shutter-area">
+                      <div class="camera-shutter">
+                        <div class="camera-shutter-inner"></div>
+                      </div>
+                      <div class="camera-free-scans">3 free scans left</div>
+                    </div>
+                    
+                    <div class="phone-tab-bar">
+                      <div class="tab-item">
+                        <div class="tab-icon active">📷</div>
+                        <span class="tab-label active">Scan</span>
+                      </div>
+                      <div class="tab-item">
+                        <div class="tab-icon">🔍</div>
+                        <span class="tab-label">Search</span>
+                      </div>
+                      <div class="tab-item">
+                        <div class="tab-icon">♡</div>
+                        <span class="tab-label">Saved</span>
+                      </div>
+                      <div class="tab-item">
+                        <div class="tab-icon">👤</div>
+                        <span class="tab-label">Profile</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Data section -->
+    <section class="section" id="data" style="background: linear-gradient(180deg, rgba(107,92,231,0.03) 0%, transparent 100%);">
+      <div class="container">
+        <!-- Hero shot — the richest screenshot (6 live callouts) is the
+             section's visual anchor, paired directly with the section's own
+             intro copy (phone left, heading+subtext right) rather than a
+             centered banner above a separately-centered image. Reuses the
+             .story flex pattern so it inherits the same gap/alignment math
+             already verified symmetric for the stories below it. -->
+        <div class="story hero-intro">
+          <div class="story-shot loose" style="--glow: radial-gradient(circle, rgba(107,92,231,0.35), transparent 68%);">
+            <picture>
+              <source srcset="images/scan.webp" type="image/webp">
+              <img src="images/scan.png" width="760" height="1437" loading="lazy" decoding="async"
+                   alt="Labradoor camera view of a home with live callouts: Seller Motivation Score 93, $214K equity, pre-foreclosure, absentee owner, a 17-property portfolio and an assumable FHA loan">
+            </picture>
+          </div>
+          <div class="story-copy">
+            <h2>See what nobody else does.</h2>
+            <p class="story-lede">This is the data professional investors use to find opportunities. Now it's yours, on any house, in about three seconds.</p>
+            <ul class="feature-list">
+              <li><span class="feature-check">✓</span><span><strong>Seller Motivation Score</strong>: a 0&ndash;100 rating of how likely the owner is to sell</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Equity position</strong>: estimated dollar equity, so you know the room to negotiate</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Distress signals</strong>: pre-foreclosure, absentee ownership, and other red flags most buyers never see</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Owner portfolio</strong>: every other property they hold, revealing investors and motivated sellers alike</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Assumable financing</strong>: existing loans a buyer could take over at a below-market rate</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 2 — Prospect -->
+        <div class="story shot-right">
+          <div class="story-shot" style="--glow: radial-gradient(circle, rgba(78,205,196,0.32), transparent 68%);">
+            <picture>
+              <source srcset="images/prospect.webp" type="image/webp">
+              <img src="images/prospect.png" width="640" height="1439" loading="lazy" decoding="async"
+                   alt="Labradoor Prospect map of Memphis with dozens of scored motivated-seller leads and filters for lead type, property type and price">
+            </picture>
+          </div>
+          <div class="story-copy">
+            <div class="story-eyebrow">Prospect</div>
+            <h3>Turn any neighborhood into a lead list.</h3>
+            <p class="story-lede">Search a city, ZIP, or county &mdash; or just pan the map and tap "Search this area." Labradoor returns every scored opportunity in that footprint, with the owner's name already attached.</p>
+            <ul class="feature-list">
+              <li><span class="feature-check">✓</span><span><strong>Filter by what matters</strong>: lead type, property type, price, beds and baths</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Equity at a glance</strong> &mdash; spot the 100%-equity owners instantly</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Farm your own backyard</strong> or a market three states away</span></li>
+            </ul>
+            <div class="proof">
+              <div class="proof-stat"><strong>20+</strong><span>Seller filters</span></div>
+              <div class="proof-stat"><strong>Map</strong><span>Draw &amp; search</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3 — Discover / mortgage intel -->
+        <div class="story">
+          <div class="story-shot" style="--glow: radial-gradient(circle, rgba(224,86,160,0.28), transparent 68%);">
+            <picture>
+              <source srcset="images/discover.webp" type="image/webp">
+              <img src="images/discover.png" width="640" height="1442" loading="lazy" decoding="async"
+                   alt="Labradoor showing estimated value, 89% equity, an assumable 4.50% mortgage with payment savings, and an 11-property owner portfolio">
+            </picture>
+          </div>
+          <div class="story-copy">
+            <div class="story-eyebrow">Equity &amp; mortgage intel</div>
+            <h3>See what they owe, what they own, and what it's worth.</h3>
+            <p class="story-lede">Estimated equity, every other property they own, and the financing already in place &mdash; including whether a low-rate loan is assumable, and what that's worth to a buyer today.</p>
+            <ul class="feature-list">
+              <li><span class="feature-check">✓</span><span><strong>Assumable-loan flag</strong> with estimated monthly savings versus today's rates</span></li>
+              <li><span class="feature-check">✓</span><span><strong>True equity position</strong> so you know how much room there is to negotiate</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Owner portfolio</strong> &mdash; see every other property they hold and who to really call</span></li>
+            </ul>
+            <div class="proof">
+              <div class="proof-stat"><strong>4.50%</strong><span>Assumable rate</span></div>
+              <div class="proof-stat"><strong>$72/mo</strong><span>Buyer savings</span></div>
+              <div class="proof-stat"><strong>11</strong><span>Owner's properties</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 — Analyze -->
+        <div class="story shot-right">
+          <div class="story-shot" style="--glow: radial-gradient(circle, rgba(78,205,196,0.3), transparent 68%);">
+            <picture>
+              <source srcset="images/analyze.webp" type="image/webp">
+              <img src="images/analyze.png" width="640" height="1502" loading="lazy" decoding="async"
+                   alt="Labradoor rental analysis showing $483 monthly cash flow, 11.6% yield, 8.3% cap rate and a Strong Deal verdict">
+            </picture>
+          </div>
+          <div class="story-copy">
+            <div class="story-eyebrow">Deal analyzer</div>
+            <h3>Underwrite the deal on the sidewalk.</h3>
+            <p class="story-lede">Rental, flip, and short-term rental models built in. Adjust price, down payment, rate, and term, and watch the verdict update &mdash; no spreadsheet, no waiting until you're back at your desk.</p>
+            <ul class="feature-list">
+              <li><span class="feature-check">✓</span><span><strong>Cash flow, cap rate, cash-on-cash and yield</strong> calculated together</span></li>
+              <li><span class="feature-check">✓</span><span><strong>A clear verdict</strong>, not just numbers &mdash; know when it's a strong deal</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Your target price</strong> and the 1% Rule price, worked backwards for you</span></li>
+            </ul>
+            <div class="proof">
+              <div class="proof-stat"><strong>$483</strong><span>Monthly cash flow</span></div>
+              <div class="proof-stat"><strong>8.3%</strong><span>Cap rate</span></div>
+              <div class="proof-stat"><strong>3</strong><span>Deal models</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5 — Payment -->
+        <div class="story">
+          <div class="story-shot" style="--glow: radial-gradient(circle, rgba(107,92,231,0.3), transparent 68%);">
+            <picture>
+              <source srcset="images/payment.webp" type="image/webp">
+              <img src="images/payment.png" width="640" height="1362" loading="lazy" decoding="async"
+                   alt="Labradoor payment estimate showing $2,149 per month broken into principal and interest, property tax, and insurance">
+            </picture>
+          </div>
+          <div class="story-copy">
+            <div class="story-eyebrow">Payment estimate</div>
+            <h3>Answer "can I actually afford this?" on the spot.</h3>
+            <p class="story-lede">A real payment snapshot, not a teaser number. Principal and interest, property tax, and insurance broken out so you can see exactly where the money goes &mdash; for a primary home or an investment property.</p>
+            <ul class="feature-list">
+              <li><span class="feature-check">✓</span><span><strong>Primary or investment</strong> &mdash; switch modes and the assumptions follow</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Every line itemized</strong>, so nothing shows up as a surprise at closing</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Tune the inputs</strong> and watch the payment move in real time</span></li>
+            </ul>
+            <div class="proof">
+              <div class="proof-stat"><strong>$2,149</strong><span>Est. monthly</span></div>
+              <div class="proof-stat"><strong>3-part</strong><span>Cost breakdown</span></div>
+              <div class="proof-stat"><strong>Instant</strong><span>Recalculation</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Plans / Tiers -->
+    <section class="section" id="plans">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-label">Plans</div>
+          <h2>Two ways to hunt.</h2>
+          <p>Start with instant intel on any home. Step up to Business when you prospect at scale.</p>
+        </div>
+
+        <div class="tier-grid">
+          <!-- Pro -->
+          <div class="tier-card">
+            <div class="tier-name">Labradoor Pro</div>
+            <div class="tier-for">For buyers, homeowners, and the curious: the inside track on any home you walk up to.</div>
+            <div class="tier-price">7-day free trial, <span>then from $10.99/mo</span></div>
+            <ul class="feature-list">
+              <li><span class="feature-check">✓</span><span><strong>Scan any home</strong> for instant intel, no MLS or agent needed</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Seller Motivation Score</strong> (0-100): know who's ready to deal before you make an offer</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Value &amp; equity</strong>: see room to negotiate and make smarter offers</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Owner &amp; distress signals</strong>: absentee, pre-foreclosure, high equity, days on market</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Street View &amp; full specs</strong>: beds, baths, sqft, taxes, and more</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Affordability calculator</strong>: see your estimated monthly payment instantly</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Save &amp; share</strong> branded property cards with a friend</span></li>
+            </ul>
+            <a href="https://apps.apple.com/" class="btn btn-primary btn-large">Start free trial</a>
+          </div>
+
+          <!-- Business -->
+          <div class="tier-card featured">
+            <div class="tier-badge">For agents &amp; investors</div>
+            <div class="tier-name">Labradoor Business</div>
+            <div class="tier-for">Turn any street into a motivated-seller lead list, and every share into a branded touchpoint.</div>
+            <div class="tier-price">Everything in Pro, <span>plus lead generation</span></div>
+            <ul class="feature-list">
+              <li><span class="feature-check">✓</span><span><strong>Prospect lead search</strong>: pull motivated-seller lists by city, ZIP, county, or map area</span></li>
+              <li><span class="feature-check">✓</span><span><strong>20+ motivated-seller filters</strong>: absentee, high equity, pre-foreclosure, portfolio owners, tenure &amp; more</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Farm any neighborhood</strong>: search your location or draw an area on the map</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Portfolio &amp; owner targeting</strong>: find investors and multi-property owners to recruit</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Branded client shares</strong>: send professional property intel that keeps you top-of-mind</span></li>
+            </ul>
+            <a href="https://withupside.com" class="btn btn-primary btn-large">Explore Business</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+      <div class="container">
+        <div class="cta-card">
+          <div class="cta-logo">
+            <img src="logo-white.png" alt="Labradoor" class="cta-logo-img">
+          </div>
+          <h2>Retrieve hidden property info instantly.</h2>
+          <p>Stop guessing. Point your phone at any house and see what you've been missing.</p>
+          <div class="cta-buttons">
+            <a href="https://apps.apple.com/" class="btn btn-cta btn-large">
+              <svg viewBox="0 0 24 24" fill="currentColor" style="width: 22px; height: 22px;"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+              Download for iOS (Free)
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <img src="logo-white.png" alt="Labradoor" class="footer-logo">
+        <div>© 2026 Labradoor. Property intelligence for everyone.</div>
+      </div>
+      <div class="footer-links">
+        <a href="contact">Contact</a>
+        <a href="privacy">Privacy</a>
+        <a href="terms">Terms</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy: Labradoor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --purple: #6B5CE7;
+      --purple-dark: #403A86;
+      --navy: #2D3154;
+      --navy-dark: #1A1B2E;
+      --teal: #4ECDC4;
+      --text: #22253A;
+      --text-muted: #687087;
+      --line: rgba(45,49,84,0.08);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, #EEF0FF 0%, #FAFBFF 34%, #FFFFFF 100%);
+      min-height: 100vh;
+      line-height: 1.7;
+    }
+
+    a { color: var(--purple); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .container { 
+      width: min(800px, calc(100% - 48px)); 
+      margin: 0 auto; 
+    }
+
+    /* Header */
+    .header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      backdrop-filter: blur(18px);
+      background: rgba(255,255,255,0.75);
+      border-bottom: 1px solid rgba(45,49,84,0.06);
+    }
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 78px;
+      width: min(1200px, calc(100% - 48px));
+      margin: 0 auto;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+    }
+    .logo-img {
+      height: 32px;
+      width: auto;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px 28px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 15px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: linear-gradient(135deg, var(--purple) 0%, #8B7CF7 50%, #E056A0 100%);
+      color: white;
+      box-shadow: 0 16px 40px rgba(107, 92, 231, 0.25);
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      text-decoration: none;
+    }
+
+    /* Content */
+    .content {
+      padding: 140px 0 80px;
+    }
+    .page-title {
+      font-size: 42px;
+      font-weight: 800;
+      color: var(--navy-dark);
+      margin-bottom: 8px;
+      letter-spacing: -0.03em;
+    }
+    .effective-date {
+      font-size: 15px;
+      color: var(--text-muted);
+      margin-bottom: 48px;
+    }
+    .intro {
+      font-size: 17px;
+      color: var(--text);
+      margin-bottom: 48px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h2 {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--navy-dark);
+      margin: 48px 0 16px;
+      letter-spacing: -0.02em;
+    }
+    h3 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--navy);
+      margin: 32px 0 12px;
+    }
+    p {
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+    ul {
+      margin: 16px 0 16px 24px;
+      color: var(--text);
+    }
+    li {
+      margin-bottom: 8px;
+    }
+
+    /* Footer */
+    .footer {
+      padding: 32px 0;
+      border-top: 1px solid var(--line);
+      background: rgba(255,255,255,0.5);
+    }
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      color: var(--text-muted);
+      width: min(1200px, calc(100% - 48px));
+      margin: 0 auto;
+    }
+    .footer a {
+      color: var(--text-muted);
+    }
+    .footer a:hover { color: var(--purple); text-decoration: none; }
+    .footer-links {
+      display: flex;
+      gap: 28px;
+    }
+
+    @media (max-width: 600px) {
+      .page-title { font-size: 32px; }
+      .footer-inner {
+        flex-direction: column;
+        gap: 20px;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a href="/" class="logo">
+        <img src="logo.png" alt="Labradoor" class="logo-img">
+      </a>
+      <a href="https://apps.apple.com/" class="btn">Download Free</a>
+    </div>
+  </header>
+
+  <main class="content">
+    <div class="container">
+      <h1 class="page-title">Privacy Policy</h1>
+      <p class="effective-date">Effective Date: August 4, 2026 &middot; Last Updated: August 4, 2026</p>
+
+      <p class="intro">
+        Labradoor ("<strong>Labradoor</strong>," "<strong>we</strong>," "<strong>us</strong>," or "<strong>our</strong>") is operated by <strong>Upside Technologies, LLC</strong>. This Privacy Policy explains how we collect, use, disclose, and protect information when you use the Labradoor mobile application, website, browser extension, and related services (collectively, the "<strong>Services</strong>").
+        <br><br>
+        This Privacy Policy also serves as our <strong>Notice at Collection</strong> under California law and as our state-required privacy notice for residents of other U.S. states with comprehensive consumer privacy laws. See <a href="#your-rights">Section 8</a> for your rights and <a href="#exercise-rights">Section 9</a> for how to exercise them.
+        <br><br>
+        <strong>Website:</strong> <a href="https://www.labradoor.ai">www.labradoor.ai</a><br>
+        <strong>Contact:</strong> <a href="mailto:hello@labradoor.ai">hello@labradoor.ai</a>
+      </p>
+
+      <h2>1. Scope</h2>
+      <p>The Services are intended for users located in the United States. We do not knowingly offer the Services to, or target, individuals in the European Economic Area, the United Kingdom, or Switzerland, and this Privacy Policy is not intended to describe rights under the EU/UK General Data Protection Regulation.</p>
+      <p>If you access the Services from outside the United States, you understand that your information will be transferred to, stored, and processed in the United States, where privacy laws may differ from those in your jurisdiction.</p>
+
+      <h2>2. Information We Collect</h2>
+      <p>We collect information in the following categories:</p>
+
+      <h3>A. Information You Provide to Us</h3>
+      <p>When you use Labradoor, you may provide:</p>
+      <ul>
+        <li>Your name, email address, and password when creating an account</li>
+        <li>Login information when signing in with Google or Apple</li>
+        <li>Property search inputs, including addresses and other property-related information</li>
+        <li>Saved properties and favorites tied to your account</li>
+        <li>Communications you send to us, including support requests, account deletion requests, and feedback</li>
+      </ul>
+
+      <h3>B. Information Collected Automatically</h3>
+      <p>When you use the Services, we may automatically collect certain technical and usage information, including:</p>
+      <ul>
+        <li>Device type and operating system</li>
+        <li>App version</li>
+        <li>IP address</li>
+        <li>General usage activity within the app</li>
+        <li>Error logs and diagnostic information</li>
+      </ul>
+
+      <h3>C. Precise Geolocation Information (Sensitive Personal Information)</h3>
+      <p><strong>Precise geolocation is treated as "sensitive personal information" or "sensitive data" under the privacy laws of California, Colorado, Connecticut, Virginia, and other states.</strong> We collect it only with your affirmative, opt-in consent.</p>
+      <p>With your permission, Labradoor collects your device location to help confirm the correct property address when you photograph a home. We use precise geolocation <strong>solely</strong> for that purpose &mdash; to identify and confirm the property you are looking at &mdash; and for no other purpose.</p>
+      <p>We do <strong>not</strong> use precise geolocation to infer characteristics about you, to build advertising or marketing profiles, for targeted advertising, or for any purpose unrelated to identifying the property you are viewing. We do not sell or share precise geolocation.</p>
+      <p><strong>Withdrawing consent:</strong> You can revoke location access at any time in your device settings (iOS: Settings &rarr; Privacy &amp; Security &rarr; Location Services &rarr; Labradoor). Revoking consent stops all future collection. Certain camera-based property identification features may not work accurately without location access.</p>
+
+      <h3>D. Camera Access</h3>
+      <p>With your permission, Labradoor may access your camera so you can photograph homes. Labradoor may use the image, along with the address number, physical location, orientation, or a combination of those signals, to help determine the correct property address.</p>
+      <p>We only access the camera when you choose to use camera-based features. You can revoke camera access at any time in your device settings.</p>
+      <p><strong>We do not use photographs to identify people.</strong> See <a href="#biometrics">Section 13 (Biometric Information)</a>.</p>
+
+      <h3>E. Photo Library Access</h3>
+      <p>With your permission, Labradoor may access your photo library so you can select and upload a profile picture. We only access your photo library when you choose to update your profile picture, and only the photo you select is uploaded &mdash; we do not scan or access the rest of your photo library. You can revoke photo library access at any time in your device settings.</p>
+
+      <h3>F. Microphone and Voice Search</h3>
+      <p>With your permission, Labradoor may access your microphone so you can speak a property address instead of typing it. Audio you speak is processed using Apple's on-device and server-based Speech Recognition service to convert your speech to text; this processing is subject to <a href="https://www.apple.com/legal/privacy/">Apple's Privacy Policy</a>. We do not otherwise record, store, or retain your voice audio, and we do not use voice data to identify you as an individual (no voiceprint or voice biometric identification is performed &mdash; see <a href="#biometrics">Section 13</a>).</p>
+      <p>We only access the microphone when you choose to use voice search. You can revoke microphone and speech recognition access at any time in your device settings.</p>
+
+      <h3>G. Authentication and Account Data</h3>
+      <p>If you sign in using Google or Apple, we receive account authentication information necessary to sign you in and maintain your account.</p>
+
+      <h3>H. Subscription and Purchase Information</h3>
+      <p>If you purchase a paid subscription, we may receive information related to your subscription status, entitlement level, and transaction metadata necessary to provide premium access. Purchases are processed through Apple's App Store. <strong>We do not collect or store your payment card number, bank account information, or other financial account credentials.</strong></p>
+
+      <h3>G. Information We Do Not Collect</h3>
+      <p>We do not collect, and do not ask you to provide:</p>
+      <ul>
+        <li>Social Security numbers, driver's license numbers, passport numbers, or other government identifiers</li>
+        <li>Financial account numbers or payment card numbers</li>
+        <li>Biometric identifiers or biometric information</li>
+        <li>Health, medical, or genetic information</li>
+        <li>Information about your racial or ethnic origin, religious beliefs, sexual orientation, union membership, immigration status, or citizenship status</li>
+        <li>The contents of your mail, email, or text messages</li>
+      </ul>
+
+      <h2>3. Categories of Personal Information &mdash; Collection, Purpose, and Disclosure</h2>
+      <p>The following summarizes, by statutory category, the personal information we have collected in the preceding 12 months, the sources, the business purposes, and the categories of third parties to whom it is disclosed. <strong>We have not sold personal information, and have not shared personal information for cross-context behavioral advertising, in the preceding 12 months.</strong></p>
+      <ul>
+        <li><strong>Identifiers</strong> (name, email address, account identifier, IP address, device identifiers) &mdash; <em>Source:</em> you and your device. <em>Purpose:</em> account creation, authentication, support, security and fraud prevention. <em>Disclosed to:</em> hosting/authentication providers.</li>
+        <li><strong>Customer records</strong> (account credentials) &mdash; <em>Source:</em> you. <em>Purpose:</em> authentication and account maintenance. <em>Disclosed to:</em> authentication providers.</li>
+        <li><strong>Commercial information</strong> (subscription status, entitlement level, transaction metadata) &mdash; <em>Source:</em> you and Apple. <em>Purpose:</em> providing and managing premium access. <em>Disclosed to:</em> Apple, hosting providers.</li>
+        <li><strong>Internet or network activity</strong> (app usage activity, error and diagnostic logs) &mdash; <em>Source:</em> your device. <em>Purpose:</em> maintaining, troubleshooting, and improving the Services; security. <em>Disclosed to:</em> hosting and diagnostics providers.</li>
+        <li><strong>Geolocation data, including precise geolocation (sensitive)</strong> &mdash; <em>Source:</em> your device, with your consent. <em>Purpose:</em> confirming the correct property address. <em>Disclosed to:</em> mapping providers as needed to render results.</li>
+        <li><strong>Visual information</strong> (photographs of properties you capture; a profile picture you choose to upload) &mdash; <em>Source:</em> you, with your consent. <em>Purpose:</em> property identification; account personalization. <em>Disclosed to:</em> hosting providers.</li>
+        <li><strong>Audio information</strong> (voice audio when you use voice search, processed transiently to text) &mdash; <em>Source:</em> you, with your consent. <em>Purpose:</em> converting spoken addresses to text for property search. <em>Disclosed to:</em> Apple (Speech Recognition service).</li>
+        <li><strong>Inferences</strong> (property matches and search results derived from your inputs) &mdash; <em>Source:</em> derived from the above. <em>Purpose:</em> providing property search and saved-property features. <em>Disclosed to:</em> hosting providers.</li>
+      </ul>
+      <p>We retain each category for the periods described in <a href="#retention">Section 6 (Data Retention)</a>.</p>
+
+      <h2>4. How We Use Your Information</h2>
+      <p>We use the information we collect to:</p>
+      <ul>
+        <li>Create and manage your account</li>
+        <li>Authenticate your login</li>
+        <li>Provide property search and saved property features</li>
+        <li>Display nearby property information and map-related results</li>
+        <li>Enable camera-based property identification features</li>
+        <li>Process subscriptions and manage premium access</li>
+        <li>Improve, maintain, and troubleshoot the app</li>
+        <li>Respond to support requests</li>
+        <li>Process account-related requests, including account deletion</li>
+        <li>Protect against fraud, abuse, and unauthorized access</li>
+        <li>Comply with legal obligations</li>
+        <li>Send you marketing communications about Labradoor features, offers, and property insights (see "Marketing Communications" below)</li>
+      </ul>
+
+      <h3>Marketing Communications</h3>
+      <p>We may use your name and email address to send you marketing emails about Labradoor, including new features, offers, and property insights. Every marketing email includes an unsubscribe link, and you may opt out at any time by clicking that link or by contacting <a href="mailto:hello@labradoor.ai">hello@labradoor.ai</a>. Opting out of marketing emails does not affect transactional emails necessary to operate your account, such as password resets, receipts, or security notices.</p>
+      <p>We do not use your phone number, and do not otherwise contact you by phone call, text message, or automated/prerecorded call, for marketing purposes.</p>
+
+      <h2>5. How We Share Information</h2>
+      <p><strong>We do not sell your personal information, and we do not share it for cross-context behavioral advertising or targeted advertising.</strong></p>
+      <p>We may share information in the following limited circumstances:</p>
+
+      <h3>A. Service Providers</h3>
+      <p>We may share information with vendors and service providers (referred to as "service providers," "processors," or "contractors" under various state laws) that help us operate the app, including:</p>
+      <ul>
+        <li><strong>Supabase</strong> for backend infrastructure, authentication, and data storage</li>
+        <li><strong>Google Maps</strong> for map and location-related functionality</li>
+        <li><strong>Apple</strong> as needed to process in-app purchases and subscriptions</li>
+        <li><strong>Google</strong> and <strong>Apple</strong> as authentication providers when you choose those sign-in methods</li>
+        <li><strong>Apple Speech Recognition</strong> to convert your spoken address into text when you use voice search</li>
+      </ul>
+      <p>These providers are bound by contract to use your information only to provide services on our behalf, and are prohibited from selling it or using it for their own purposes.</p>
+
+      <h3>B. Legal Compliance</h3>
+      <p>We may disclose information if required to do so by law or if we believe disclosure is necessary to:</p>
+      <ul>
+        <li>Comply with legal obligations</li>
+        <li>Protect our rights or property</li>
+        <li>Prevent fraud or abuse</li>
+        <li>Protect the safety of users or others</li>
+      </ul>
+
+      <h3>C. Business Transfers</h3>
+      <p>If Upside Technologies, LLC is involved in a merger, acquisition, asset sale, or similar transaction, your information may be transferred as part of that transaction. We will notify you of any such transfer and of any resulting changes to this Privacy Policy.</p>
+
+      <h3>D. California "Shine the Light"</h3>
+      <p>California Civil Code Section 1798.83 permits California residents to request information about disclosure of personal information to third parties for those third parties' direct marketing purposes. <strong>We do not disclose personal information to third parties for their own direct marketing purposes.</strong></p>
+
+      <h2 id="retention">6. Data Retention</h2>
+      <p>We retain your information for as long as reasonably necessary to:</p>
+      <ul>
+        <li>Maintain your account</li>
+        <li>Provide the Services</li>
+        <li>Preserve your saved properties and preferences</li>
+        <li>Comply with legal obligations</li>
+        <li>Resolve disputes</li>
+        <li>Enforce our agreements</li>
+      </ul>
+      <p>In general: account and profile data is retained for the life of your account; saved properties and search inputs are retained for the life of your account; diagnostic and error logs are retained for a limited period (typically no more than 90 days); and precise geolocation is used transiently to identify a property and is not retained as a standalone location history.</p>
+      <p>If you delete your account through the app, we will delete or de-identify your personal information and account-associated data, except where retention is required or permitted by law, including for legal, security, fraud-prevention, billing, or compliance purposes.</p>
+
+      <h2>7. No Sale, No Targeted Advertising, and Opt-Out Preference Signals</h2>
+      <p>We do not, and in the preceding 12 months did not:</p>
+      <ul>
+        <li>Sell personal information (as "sell" is defined under California, Virginia, Colorado, Connecticut, or other state law)</li>
+        <li>Share personal information for cross-context behavioral advertising</li>
+        <li>Use personal information for targeted advertising</li>
+        <li>Engage in profiling in furtherance of decisions that produce legal or similarly significant effects concerning you</li>
+        <li>Sell or share the personal information of any consumer we know to be under 16 years of age</li>
+      </ul>
+      <p><strong>Opt-out preference signals / Global Privacy Control (GPC).</strong> Because we do not sell or share personal information or engage in targeted advertising, there is no sale or sharing to opt out of. Nonetheless, our website is configured to recognize and honor opt-out preference signals, including the Global Privacy Control, transmitted by your browser or device. We treat such a signal as a valid request to opt out for that browser or device.</p>
+      <p><strong>Limiting sensitive personal information.</strong> We use precise geolocation only for the purpose you consented to &mdash; identifying the property you are viewing &mdash; and never to infer characteristics about you. Because our use falls within the purposes permitted without a "Limit the Use of My Sensitive Personal Information" link under California law, no such link is displayed. You may withdraw location consent at any time in your device settings.</p>
+
+      <h2 id="your-rights">8. Your Privacy Rights</h2>
+      <p>Depending on where you live, you may have some or all of the rights described below. We extend the core rights in this section to <strong>all U.S. users, regardless of state of residence.</strong></p>
+      <p>These rights are provided under laws including the California Consumer Privacy Act as amended by the CPRA, and the comprehensive consumer privacy laws of <strong>California, Colorado, Connecticut, Delaware, Florida, Indiana, Iowa, Kentucky, Maryland, Minnesota, Montana, Nebraska, New Hampshire, New Jersey, Oregon, Rhode Island, Tennessee, Texas, Utah, and Virginia</strong>, as well as other states as their laws take effect.</p>
+      <ul>
+        <li><strong>Right to know / access.</strong> Request confirmation of whether we process your personal information, and access to the specific pieces and categories we hold, the sources, the purposes, and the categories of third parties to whom we disclose it.</li>
+        <li><strong>Right to delete.</strong> Request deletion of personal information we have collected from you, subject to legal exceptions.</li>
+        <li><strong>Right to correct.</strong> Request correction of inaccurate personal information.</li>
+        <li><strong>Right to data portability.</strong> Obtain a copy of your personal information in a portable and, to the extent technically feasible, readily usable format.</li>
+        <li><strong>Right to opt out</strong> of the sale or sharing of personal information, targeted advertising, and profiling with legal or similarly significant effects. <em>As described in Section 7, we do not engage in any of these activities.</em></li>
+        <li><strong>Right to limit the use and disclosure of sensitive personal information</strong>, including precise geolocation. You may withdraw consent at any time.</li>
+        <li><strong>Right to withdraw consent</strong> to processing of sensitive data, including precise geolocation and camera access, at any time through your device settings.</li>
+        <li><strong>Right to non-discrimination.</strong> We will not deny you goods or services, charge you a different price, or provide a different level or quality of service because you exercised a privacy right. We do not offer financial incentives in exchange for personal information.</li>
+        <li><strong>Right to appeal.</strong> If we decline your request, you may appeal &mdash; see Section 9.</li>
+        <li><strong>Right to opt out of automated decision-making.</strong> We do not use your personal information to make automated decisions that produce legal or similarly significant effects concerning you.</li>
+      </ul>
+      <p><strong>Minnesota, Oregon, and certain other states</strong> additionally give you the right to obtain a list of the specific third parties (not merely categories) to whom we have disclosed personal information. You may request this list using the contact methods in Section 9.</p>
+
+      <h2 id="exercise-rights">9. How to Exercise Your Rights</h2>
+      <p><strong>To submit a privacy request</strong>, use either method below:</p>
+      <ul>
+        <li><strong>Email:</strong> <a href="mailto:privacy@labradoor.ai">privacy@labradoor.ai</a> (or <a href="mailto:hello@labradoor.ai">hello@labradoor.ai</a>) with the subject line "Privacy Request"</li>
+        <li><strong>In the app:</strong> account deletion is available directly in your account settings</li>
+      </ul>
+      <p>Please tell us which right you wish to exercise and the email address associated with your account.</p>
+      <p><strong>Verification.</strong> To protect your information, we will verify your identity before acting on a request &mdash; typically by confirming control of the email address associated with your account. We may request additional information if we cannot otherwise verify you. We will not use verification information for any other purpose.</p>
+      <p><strong>Authorized agents.</strong> You may designate an authorized agent to submit a request on your behalf. We may require the agent to provide proof of authorization, and may require you to verify your own identity directly with us.</p>
+      <p><strong>Response timing.</strong> We will acknowledge receipt within 10 business days where required, and respond substantively within <strong>45 days</strong>. We may extend that period by an additional 45 days (90 days in some states) where reasonably necessary, and will notify you of the extension and the reason. Requests are free unless manifestly unfounded, excessive, or repetitive, in which case we may charge a reasonable fee or decline, and will explain why.</p>
+      <p><strong>Appeals.</strong> If we decline your request, you may appeal by replying to our decision or emailing <a href="mailto:privacy@labradoor.ai">privacy@labradoor.ai</a> with the subject line "Privacy Appeal." We will respond in writing within <strong>45 days</strong> (60 days in some states), explaining the reasons for our decision. If we deny your appeal, we will provide you with a method to contact your state Attorney General to submit a complaint.</p>
+
+      <h2>10. Your Choices</h2>
+      <p>You may:</p>
+      <ul>
+        <li>Update certain account information within the app</li>
+        <li>Revoke camera or location permissions in your device settings</li>
+        <li><strong>Unsubscribe from marketing emails</strong> at any time using the link in any marketing email, or by contacting <a href="mailto:hello@labradoor.ai">hello@labradoor.ai</a></li>
+        <li>Stop using the Services at any time</li>
+        <li><strong>Delete your account through the app or by contacting <a href="mailto:hello@labradoor.ai">hello@labradoor.ai</a></strong></li>
+      </ul>
+      <p>Deleting the app from your device does not automatically delete your account or associated data.</p>
+
+      <h2>11. Subscriptions and Payments</h2>
+      <p>Labradoor offers paid subscriptions. Purchases made through Apple's App Store are processed by Apple, not by us directly. Subscription billing, renewals, cancellations, and refunds are governed by Apple's terms and can be managed through your Apple account settings. We do not receive or store your payment card details.</p>
+
+      <h2>12. Data Security</h2>
+      <p>We use reasonable administrative, technical, and organizational safeguards designed to protect your information, including encryption of data in transit, access controls, and authentication safeguards. However, no method of transmission or storage is completely secure, and we cannot guarantee absolute security.</p>
+      <p>If we become aware of a breach of the security of your personal information, we will notify you and applicable regulators as required by the breach-notification laws of your state.</p>
+
+      <h2 id="biometrics">13. Biometric Information</h2>
+      <p><strong>Labradoor does not collect, capture, purchase, receive, store, use, or disclose biometric identifiers or biometric information</strong> as those terms are defined under the Illinois Biometric Information Privacy Act (BIPA), the Texas Capture or Use of Biometric Identifier Act (CUBI), the Washington Biometric Privacy Act, or any similar law.</p>
+      <p>Specifically, we do not perform facial recognition, facial geometry scanning, voiceprint analysis, fingerprint or retina scanning, or any other biometric identification. Photographs you capture are used solely to identify <strong>property</strong> &mdash; buildings and addresses &mdash; and are never used to identify, recognize, or analyze people.</p>
+
+      <h2>14. Children's and Minors' Privacy</h2>
+      <p>The Services are intended for users <strong>18 years of age or older</strong> and are not directed to children.</p>
+      <p>We do not knowingly collect personal information from children under 13, consistent with the Children's Online Privacy Protection Act (COPPA). We do not knowingly sell or share the personal information of consumers under 16 years of age, and we do not engage in targeted advertising to minors.</p>
+      <p>If we learn that we have collected personal information from a child under 13, or from a minor under 18 in violation of applicable law, we will take steps to delete it promptly. Parents or guardians who believe their child has provided us personal information may contact <a href="mailto:privacy@labradoor.ai">privacy@labradoor.ai</a>.</p>
+      <p>California residents under 18 who are registered users may request removal of content they have publicly posted, under California Business and Professions Code Section 22581.</p>
+
+      <h2>15. Third-Party Services</h2>
+      <p>The Services may rely on third-party services, including Google Maps, Apple Sign In, Google Sign In, Supabase, and the Apple App Store. Those third parties may have their own privacy policies and terms, and we encourage you to review them. We are not responsible for the privacy practices of third parties.</p>
+
+      <h2>16. Apple-Specific Privacy Note</h2>
+      <p>If you download Labradoor through the Apple App Store, Apple may collect and process certain information in connection with your use of the app and in-app purchases in accordance with Apple's own privacy practices.</p>
+
+      <h2>17. Additional State-Specific Notices</h2>
+      <h3>Nevada</h3>
+      <p>Nevada residents have the right under NRS Chapter 603A to direct a covered operator not to sell certain covered information. <strong>We do not sell covered information as defined by Nevada law.</strong> If you would nonetheless like to submit a request, email <a href="mailto:privacy@labradoor.ai">privacy@labradoor.ai</a>.</p>
+      <h3>Washington and Nevada &mdash; Consumer Health Data</h3>
+      <p>The Washington My Health My Data Act and Nevada SB 370 regulate "consumer health data." <strong>Labradoor does not collect, process, or share consumer health data</strong> as defined by those laws.</p>
+      <h3>Texas</h3>
+      <p>Texas residents are notified, as required by the Texas Data Privacy and Security Act, that we may collect and process sensitive personal data (precise geolocation) only with your consent, as described in Section 2(C).</p>
+      <h3>Florida</h3>
+      <p>We do not collect voice or video recordings through a device's microphone or camera without your consent, do not use a device's speech- or facial-recognition features, and do not collect data from a device's GPS for the purpose of advertising.</p>
+
+      <h2>18. Changes to This Policy</h2>
+      <p>We may update this Privacy Policy from time to time. If we make material changes, we will update the Effective Date above and, where required by law, provide additional notice such as an in-app notice or email. Your continued use of the Services after changes become effective means you accept the updated Privacy Policy.</p>
+
+      <h2>19. Contact Us</h2>
+      <p>If you have questions about this Privacy Policy or want to make a privacy request, contact:</p>
+      <p>
+        <strong>Upside Technologies, LLC</strong><br>
+        7241 McVay Manor Cove<br>
+        Germantown, TN 38138<br>
+        <a href="https://www.labradoor.ai">www.labradoor.ai</a><br>
+        Privacy requests: <a href="mailto:privacy@labradoor.ai">privacy@labradoor.ai</a><br>
+        General: <a href="mailto:hello@labradoor.ai">hello@labradoor.ai</a>
+      </p>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div>© 2026 Labradoor. Property intelligence for everyone.</div>
+      <div class="footer-links">
+        <a href="contact">Contact</a>
+        <a href="privacy">Privacy</a>
+        <a href="terms">Terms</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
