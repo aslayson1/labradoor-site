@@ -939,26 +939,15 @@
       border-radius: 34px;
       filter: drop-shadow(0 30px 60px rgba(26,27,46,0.22));
     }
-    /* scan.png/webp now have real alpha baked into all four edges (feathered
-       in the source file itself), so the fade is pixel-accurate regardless
-       of CSS mask-image browser quirks — no mask needed here anymore. */
+    /* scan.png/webp is a pre-composed device mockup with real transparency
+       and its own drop shadow already baked in — no CSS rounding, clipping,
+       or shadow needed on top of it. */
     .story-shot.loose img {
       border-radius: 0;
       filter: none;
     }
-    /* Owns the rounding + clipping + drop-shadow that .story-shot img
-       normally carries directly — kept separate here specifically because
-       this shot also has mask-image applied (the fade above), and
-       border-radius + mask-image stacked on the same element is genuinely
-       browser-dependent about whether corners actually get clipped.
-       overflow:hidden on this wrapper clips the masked image's corners
-       unconditionally; the drop-shadow still bleeds outward as normal since
-       overflow only clips this element's CHILDREN, not its own filter. */
     .story-shot.loose .shot-clip {
       display: inline-flex;
-      border-radius: 34px;
-      overflow: hidden;
-      filter: drop-shadow(0 30px 60px rgba(26,27,46,0.22));
     }
 
     .story-eyebrow {
@@ -1364,7 +1353,7 @@
             <div class="shot-clip">
               <picture>
                 <source srcset="images/scan.webp" type="image/webp">
-                <img src="images/scan.png" width="760" height="1437" loading="lazy" decoding="async"
+                <img src="images/scan.png" width="1215" height="2272" loading="lazy" decoding="async"
                      alt="Labradoor camera view of a home with live callouts: Seller Motivation Score 93, $214K equity, pre-foreclosure, absentee owner, a 17-property portfolio and an assumable FHA loan">
               </picture>
             </div>
