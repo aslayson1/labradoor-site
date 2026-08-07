@@ -1015,10 +1015,13 @@
     .surfaces {
       margin-top: clamp(88px, 10vw, 140px);
     }
+    /* Tight bottom margin on purpose: the artwork below is cropped flush to
+       its own drop shadows, so this margin is the entire gap — there's no
+       transparent padding left in the image to pad it out further. */
     .surfaces-head {
       text-align: center;
-      max-width: 760px;
-      margin: 0 auto clamp(44px, 5vw, 64px);
+      max-width: 800px;
+      margin: 0 auto clamp(24px, 2.6vw, 34px);
     }
     .surfaces-head h3 {
       font-size: clamp(28px, 3.4vw, 42px);
@@ -1043,7 +1046,7 @@
       position: relative;
       /* The composite's native width. Scaling past it only softens the
          image, so it caps here and centres in the wider container. */
-      max-width: 1000px;
+      max-width: 940px;
       margin: 0 auto clamp(52px, 6vw, 76px);
     }
     /* Brand bloom behind the artwork, matching the per-story --glow
@@ -1361,14 +1364,14 @@
         <div class="surfaces">
           <div class="surfaces-head">
             <span class="section-label">One account, three ways in</span>
-            <h3>Wherever you look at a house, Labradoor is already there.</h3>
-            <p>Standing on the sidewalk. Scrolling listings at midnight. Building a lead list at your desk. Same data, same account, same answer &mdash; whichever screen you happen to be in front of.</p>
+            <h3>Where you find a home, Labradoor uncovers the opportunity.</h3>
+            <p>Labradoor gives you property intelligence whether you're standing in front of a home, browsing properties online, or building a targeted lead list. Instantly uncover hidden property data, owner insights, equity, motivation signals, and more, all with one account.</p>
           </div>
 
           <div class="surface-stack">
             <picture>
               <source srcset="images/surfaces.webp" type="image/webp">
-              <img src="images/surfaces.png" width="1000" height="800" loading="lazy" decoding="async"
+              <img src="images/surfaces.png" width="940" height="708" loading="lazy" decoding="async"
                    alt="Labradoor running on all three surfaces at once: the iPhone app showing a Motivation Score of 82 with property insights, the web platform showing a map of Nashville with scored off-market leads, and the Chrome extension open over a Zillow listing">
             </picture>
           </div>
