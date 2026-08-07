@@ -1097,12 +1097,23 @@
       box-shadow: 0 16px 38px rgba(45,49,84,0.1);
       background: white;
     }
-    /* The Apple mark and the monitor glyph inherit the pill's own navy via
-       currentColor; the Chrome icon is a full-colour PNG and keeps its own
-       brand colours — the same pairing the header store badges use. */
+    /* All three marks inherit the pill's own navy via currentColor. The
+       Chrome mark is a single-colour outline PNG (not the header's
+       full-colour badge icon), so it's applied as a CSS mask rather than an
+       <img> — same trick as the SVGs, just for a raster source. */
     .surface-pill svg,
-    .surface-pill img { width: 18px; height: 18px; flex-shrink: 0; }
-    .surface-pill img { border-radius: 4px; }
+    .surface-pill .chrome-mark { width: 18px; height: 18px; flex-shrink: 0; }
+    .surface-pill .chrome-mark {
+      background-color: currentColor;
+      -webkit-mask-image: url('chrome-icon-outline.png');
+      mask-image: url('chrome-icon-outline.png');
+      -webkit-mask-size: contain;
+      mask-size: contain;
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+      -webkit-mask-position: center;
+      mask-position: center;
+    }
 
     @media (max-width: 1100px) {
       .data-grid {
@@ -1358,7 +1369,7 @@
               iPhone App
             </span>
             <span class="surface-pill">
-              <img src="chrome-icon.png" alt="" aria-hidden="true">
+              <span class="chrome-mark" aria-hidden="true"></span>
               Chrome Extension
             </span>
             <span class="surface-pill">
