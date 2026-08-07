@@ -1015,13 +1015,10 @@
     .surfaces {
       margin-top: clamp(88px, 10vw, 140px);
     }
-    /* Tight bottom margin on purpose: the artwork below is cropped flush to
-       its own drop shadows, so this margin is the entire gap — there's no
-       transparent padding left in the image to pad it out further. */
     .surfaces-head {
       text-align: center;
       max-width: 800px;
-      margin: 0 auto clamp(24px, 2.6vw, 34px);
+      margin: 0 auto clamp(20px, 2.2vw, 28px);
     }
     .surfaces-head h3 {
       font-size: clamp(28px, 3.4vw, 42px);
@@ -1029,7 +1026,7 @@
       font-weight: 800;
       letter-spacing: -0.03em;
       color: var(--navy-dark);
-      margin: 14px 0 16px;
+      margin: 0 0 16px;
     }
     .surfaces-head p {
       font-size: 18px;
@@ -1069,13 +1066,17 @@
       height: auto;
     }
 
-    /* Just the three names as pills — the artwork above already shows what
-       each surface looks like, so descriptive copy here only repeated it. */
+    /* Just the three names as pills — the artwork below already shows what
+       each surface looks like, so descriptive copy here only repeated it.
+       This bottom margin is the entire gap down to the artwork: it's cropped
+       flush to its own drop shadows, with no transparent padding left to
+       space it out further. */
     .surface-pills {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
       gap: 14px;
+      margin-bottom: clamp(24px, 2.6vw, 34px);
     }
     .surface-pill {
       display: inline-flex;
@@ -1096,10 +1097,12 @@
       box-shadow: 0 16px 38px rgba(45,49,84,0.1);
       background: white;
     }
-    .surface-pill svg { width: 18px; height: 18px; flex-shrink: 0; }
-    .surface-pill.purple svg { color: var(--purple); }
-    .surface-pill.teal   svg { color: var(--teal-dark); }
-    .surface-pill.pink   svg { color: var(--pink); }
+    /* The Apple mark and the monitor glyph inherit the pill's own navy via
+       currentColor; the Chrome icon is a full-colour PNG and keeps its own
+       brand colours — the same pairing the header store badges use. */
+    .surface-pill svg,
+    .surface-pill img { width: 18px; height: 18px; flex-shrink: 0; }
+    .surface-pill img { border-radius: 4px; }
 
     @media (max-width: 1100px) {
       .data-grid {
@@ -1343,9 +1346,28 @@
              this is available before being walked through each feature. -->
         <div class="surfaces">
           <div class="surfaces-head">
-            <span class="section-label">One account, three ways in</span>
             <h3>Wherever you find a home, Labradoor uncovers the opportunity.</h3>
             <p>Labradoor gives you property intelligence whether you're standing in front of a home, browsing properties online, or building a targeted lead list. Instantly uncover hidden property data, owner insights, equity, motivation signals, and more, all with one account.</p>
+          </div>
+
+          <div class="surface-pills">
+            <span class="surface-pill">
+              <!-- Same Apple mark and Chrome icon as the header store badges,
+                   so the two surfaces are identified consistently sitewide. -->
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+              iPhone App
+            </span>
+            <span class="surface-pill">
+              <img src="chrome-icon.png" alt="" aria-hidden="true">
+              Chrome Extension
+            </span>
+            <span class="surface-pill">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="2" y="4" width="20" height="14" rx="2"></rect>
+                <path d="M8 21h8M12 18v3"></path>
+              </svg>
+              Web Platform
+            </span>
           </div>
 
           <div class="surface-stack">
@@ -1354,31 +1376,6 @@
               <img src="images/surfaces.png" width="940" height="708" loading="lazy" decoding="async"
                    alt="Labradoor running on all three surfaces at once: the iPhone app showing a Motivation Score of 82 with property insights, the web platform showing a map of Nashville with scored off-market leads, and the Chrome extension open over a Zillow listing">
             </picture>
-          </div>
-
-          <div class="surface-pills">
-            <span class="surface-pill purple">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="6" y="2" width="12" height="20" rx="3"></rect>
-                <path d="M11 18h2"></path>
-              </svg>
-              iPhone App
-            </span>
-            <span class="surface-pill teal">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="10"></circle>
-                <circle cx="12" cy="12" r="4"></circle>
-                <path d="M12 8h9M8.5 14 4 21.5M15.5 14 11 21.5"></path>
-              </svg>
-              Chrome Extension
-            </span>
-            <span class="surface-pill pink">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <rect x="2" y="4" width="20" height="14" rx="2"></rect>
-                <path d="M8 21h8M12 18v3"></path>
-              </svg>
-              Web Platform
-            </span>
           </div>
         </div>
 
