@@ -1034,65 +1034,36 @@
       color: var(--text-muted);
     }
 
-    /* Overlapping composition. The three shots are absolutely positioned
-       inside a fixed-aspect box: every offset is a % of that box, so the
-       arrangement scales as one unit instead of drifting apart at
-       in-between widths the way margin-based overlap does. */
-    /* 1200/640 rather than a rounder 16/9: at 16/9 the box is tall enough
-       that the web and extension shots only overlap by ~45px vertically,
-       which reads as two shots accidentally touching instead of a
-       deliberate stack. Tightening the height pulls them into a ~120px
-       overlap. */
+    /* One pre-composed transparent PNG of all three surfaces, not three
+       separately-positioned shots — the overlap, perspective and drop
+       shadows are baked into the artwork, so there's deliberately no
+       border, radius or box-shadow here (adding any would draw a second
+       rectangle around an image that already has its own edges). */
     .surface-stack {
       position: relative;
-      aspect-ratio: 1200 / 640;
-      margin-bottom: clamp(52px, 6vw, 76px);
+      /* The composite's native width. Scaling past it only softens the
+         image, so it caps here and centres in the wider container. */
+      max-width: 1000px;
+      margin: 0 auto clamp(52px, 6vw, 76px);
     }
-    /* Brand bloom behind the whole group, matching the per-story --glow
+    /* Brand bloom behind the artwork, matching the per-story --glow
        treatment used elsewhere in this section. */
     .surface-stack::before {
       content: "";
       position: absolute;
-      inset: 4% 2%;
+      inset: 6% 4%;
       background:
         radial-gradient(circle at 30% 38%, rgba(107,92,231,0.30), transparent 62%),
         radial-gradient(circle at 78% 72%, rgba(78,205,196,0.26), transparent 60%);
       filter: blur(64px);
       z-index: 0;
     }
-    .surface-shot {
-      position: absolute;
-      border-radius: 14px;
-      border: 1px solid rgba(45,49,84,0.10);
-      overflow: hidden;
-      background: #fff;
-      /* Two shadows on purpose: the tight one keeps a crisp readable edge
-         where the shots overlap each other, the wide one lifts the whole
-         group off the page. A single large shadow blurs the overlap seam. */
-      box-shadow:
-        0 2px 6px rgba(26,27,46,0.10),
-        0 30px 70px rgba(26,27,46,0.22);
-    }
-    .surface-shot img {
+    .surface-stack img {
+      position: relative;
+      z-index: 1;
       display: block;
       width: 100%;
       height: auto;
-    }
-    .surface-shot.is-web { width: 68%; left: 0;   top: 0;     z-index: 1; }
-    .surface-shot.is-ext { width: 48%; right: 6%; bottom: 0;  z-index: 2; }
-    /* The phone is a raw screenshot (no bezel in the file), so it gets the
-       device rounding in CSS — 18px here is 34px scaled to this size, to
-       match the phones in the stories above. */
-    .surface-shot.is-app {
-      width: 14%;
-      right: 0;
-      bottom: 4%;
-      z-index: 3;
-      border: none;
-      border-radius: 18px;
-      box-shadow:
-        0 3px 8px rgba(26,27,46,0.14),
-        0 26px 56px rgba(26,27,46,0.30);
     }
 
     .surface-cards {
@@ -1192,21 +1163,8 @@
       /* Stacked column gives a definite containing block, so % is safe here
          and keeps the phone inside very narrow viewports. */
       .story-shot img { max-width: min(310px, 100%); }
-      /* The overlapped composition stops working once the container is this
-         narrow — at 14% the phone renders under ~90px wide, well past
-         legible. Drop the absolute positioning and stack the three shots. */
-      .surface-stack {
-        aspect-ratio: auto;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 28px;
-      }
-      .surface-stack::before { inset: 8% 0; }
-      .surface-shot { position: static; }
-      .surface-shot.is-web,
-      .surface-shot.is-ext { width: 100%; }
-      .surface-shot.is-app { width: min(210px, 56%); }
+      /* The composite artwork just scales with its container, so it needs
+         no stacked fallback of its own — only the cards below it do. */
       .surface-cards { grid-template-columns: 1fr; }
       .data-card.featured {
         grid-column: auto;
@@ -1408,27 +1366,11 @@
           </div>
 
           <div class="surface-stack">
-            <div class="surface-shot is-web">
-              <picture>
-                <source srcset="images/platform.webp" type="image/webp">
-                <img src="images/platform.png" width="1600" height="872" loading="lazy" decoding="async"
-                     alt="The Labradoor web platform showing a map of Nashville with scored off-market leads, filters for lead type and price, and a results list with owner names and equity">
-              </picture>
-            </div>
-            <div class="surface-shot is-ext">
-              <picture>
-                <source srcset="images/extension.webp" type="image/webp">
-                <img src="images/extension.png" width="1200" height="653" loading="lazy" decoding="async"
-                     alt="The Labradoor Chrome extension open on a Zillow listing, showing a Motivation Score of 100, 90% equity, and pre-foreclosure and vacant flags">
-              </picture>
-            </div>
-            <div class="surface-shot is-app">
-              <picture>
-                <source srcset="images/discover.webp" type="image/webp">
-                <img src="images/discover.png" width="640" height="1442" loading="lazy" decoding="async"
-                     alt="The Labradoor iPhone app showing estimated value, equity, and the owner's other properties">
-              </picture>
-            </div>
+            <picture>
+              <source srcset="images/surfaces.webp" type="image/webp">
+              <img src="images/surfaces.png" width="1000" height="800" loading="lazy" decoding="async"
+                   alt="Labradoor running on all three surfaces at once: the iPhone app showing a Motivation Score of 82 with property insights, the web platform showing a map of Nashville with scored off-market leads, and the Chrome extension open over a Zillow listing">
+            </picture>
           </div>
 
           <div class="surface-cards">
