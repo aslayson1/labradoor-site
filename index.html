@@ -1069,56 +1069,37 @@
       height: auto;
     }
 
-    .surface-cards {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
+    /* Just the three names as pills — the artwork above already shows what
+       each surface looks like, so descriptive copy here only repeated it. */
+    .surface-pills {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 14px;
     }
-    .surface-card {
+    .surface-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 24px;
+      border-radius: 100px;
       background: rgba(255,255,255,0.85);
       border: 1px solid var(--line);
-      border-radius: var(--radius-xl);
-      padding: 28px;
       box-shadow: 0 10px 30px rgba(45,49,84,0.05);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--navy);
       transition: all 0.3s ease;
     }
-    .surface-card:hover {
-      transform: translateY(-6px);
-      box-shadow: 0 20px 50px rgba(45,49,84,0.1);
+    .surface-pill:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 38px rgba(45,49,84,0.1);
       background: white;
     }
-    .surface-card-icon {
-      width: 52px;
-      height: 52px;
-      border-radius: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 20px;
-    }
-    .surface-card-icon svg { width: 26px; height: 26px; }
-    .surface-card-icon.purple { background: linear-gradient(135deg, rgba(107,92,231,0.15), rgba(107,92,231,0.08)); color: var(--purple); }
-    .surface-card-icon.teal   { background: linear-gradient(135deg, rgba(78,205,196,0.18), rgba(78,205,196,0.09)); color: var(--teal-dark); }
-    .surface-card-icon.pink   { background: linear-gradient(135deg, rgba(224,86,160,0.15), rgba(224,86,160,0.08)); color: var(--pink); }
-    .surface-card h4 {
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--navy);
-      margin-bottom: 10px;
-    }
-    .surface-card p {
-      font-size: 15px;
-      color: var(--text-muted);
-      line-height: 1.6;
-    }
-    .surface-card-where {
-      display: block;
-      margin-top: 14px;
-      font-size: 12.5px;
-      font-weight: 600;
-      color: var(--purple-dark);
-      letter-spacing: 0.01em;
-    }
+    .surface-pill svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .surface-pill.purple svg { color: var(--purple); }
+    .surface-pill.teal   svg { color: var(--teal-dark); }
+    .surface-pill.pink   svg { color: var(--pink); }
 
     @media (max-width: 1100px) {
       .data-grid {
@@ -1166,9 +1147,8 @@
       /* Stacked column gives a definite containing block, so % is safe here
          and keeps the phone inside very narrow viewports. */
       .story-shot img { max-width: min(310px, 100%); }
-      /* The composite artwork just scales with its container, so it needs
-         no stacked fallback of its own — only the cards below it do. */
-      .surface-cards { grid-template-columns: 1fr; }
+      /* The composite artwork scales with its container and the pills below
+         it wrap on their own, so this section needs no stacked fallback. */
       .data-card.featured {
         grid-column: auto;
       }
@@ -1364,7 +1344,7 @@
         <div class="surfaces">
           <div class="surfaces-head">
             <span class="section-label">One account, three ways in</span>
-            <h3>Where you find a home, Labradoor uncovers the opportunity.</h3>
+            <h3>Wherever you find a home, Labradoor uncovers the opportunity.</h3>
             <p>Labradoor gives you property intelligence whether you're standing in front of a home, browsing properties online, or building a targeted lead list. Instantly uncover hidden property data, owner insights, equity, motivation signals, and more, all with one account.</p>
           </div>
 
@@ -1376,43 +1356,29 @@
             </picture>
           </div>
 
-          <div class="surface-cards">
-            <div class="surface-card">
-              <div class="surface-card-icon purple" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="6" y="2" width="12" height="20" rx="3"></rect>
-                  <path d="M11 18h2"></path>
-                </svg>
-              </div>
-              <h4>iPhone app</h4>
-              <p>Point your camera at any house and have the full picture before you reach the front door &mdash; motivation score, equity, owner, and the numbers on the deal.</p>
-              <span class="surface-card-where">On the sidewalk</span>
-            </div>
-
-            <div class="surface-card">
-              <div class="surface-card-icon teal" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <circle cx="12" cy="12" r="4"></circle>
-                  <path d="M12 8h9M8.5 14 4 21.5M15.5 14 11 21.5"></path>
-                </svg>
-              </div>
-              <h4>Chrome extension</h4>
-              <p>Labradoor rides along on Zillow, Redfin, Realtor.com, Trulia and more &mdash; adding everything the listing leaves out, right beside it.</p>
-              <span class="surface-card-where">While you browse</span>
-            </div>
-
-            <div class="surface-card">
-              <div class="surface-card-icon pink" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="2" y="4" width="20" height="14" rx="2"></rect>
-                  <path d="M8 21h8M12 18v3"></path>
-                </svg>
-              </div>
-              <h4>Web platform</h4>
-              <p>Work a whole market at once. Search a city or draw your own boundary, filter to the sellers you want, and take the finished list with you.</p>
-              <span class="surface-card-where">At your desk</span>
-            </div>
+          <div class="surface-pills">
+            <span class="surface-pill purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="6" y="2" width="12" height="20" rx="3"></rect>
+                <path d="M11 18h2"></path>
+              </svg>
+              iPhone App
+            </span>
+            <span class="surface-pill teal">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle>
+                <circle cx="12" cy="12" r="4"></circle>
+                <path d="M12 8h9M8.5 14 4 21.5M15.5 14 11 21.5"></path>
+              </svg>
+              Chrome Extension
+            </span>
+            <span class="surface-pill pink">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="2" y="4" width="20" height="14" rx="2"></rect>
+                <path d="M8 21h8M12 18v3"></path>
+              </svg>
+              Web Platform
+            </span>
           </div>
         </div>
 
