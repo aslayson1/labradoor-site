@@ -43,7 +43,13 @@
         radial-gradient(circle at top left, rgba(199,125,255,.18), transparent 35%),
         radial-gradient(circle at 85% 15%, rgba(78,205,196,.15), transparent 25%),
         radial-gradient(circle at 50% 80%, rgba(107,92,231,.08), transparent 40%),
-        linear-gradient(180deg, #EEF0FF 0%, #FAFBFF 34%, #FFFFFF 100%);
+        /* One continuous fade across the entire document height, not a
+           34%-of-body plateau — the old stop finished at ~34% of body's
+           full ~7200px height (~2450px down), well before the page's
+           light-background content actually ends (~6400px, where the dark
+           .cta section takes over), so most of the page sat on flat white
+           already. This spans the whole thing in one pass instead. */
+        linear-gradient(180deg, #EEF0FF 0%, #FFFFFF 100%);
       min-height: 100vh;
     }
 
@@ -689,7 +695,7 @@
       width: 22px;
       height: 22px;
       border-radius: 50%;
-      background: linear-gradient(135deg, var(--purple), var(--teal));
+      background: linear-gradient(135deg, var(--purple) 0%, var(--purple-light) 50%, var(--pink) 100%);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -944,6 +950,23 @@
     .story-shot.loose img {
       -webkit-mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
       mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
+      /* Radius/shadow live on .shot-clip instead — see that rule. */
+      border-radius: 0;
+      filter: none;
+    }
+    /* Owns the rounding + clipping + drop-shadow that .story-shot img
+       normally carries directly — kept separate here specifically because
+       this shot also has mask-image applied (the fade above), and
+       border-radius + mask-image stacked on the same element is genuinely
+       browser-dependent about whether corners actually get clipped.
+       overflow:hidden on this wrapper clips the masked image's corners
+       unconditionally; the drop-shadow still bleeds outward as normal since
+       overflow only clips this element's CHILDREN, not its own filter. */
+    .story-shot.loose .shot-clip {
+      display: inline-flex;
+      border-radius: 34px;
+      overflow: hidden;
+      filter: drop-shadow(0 30px 60px rgba(26,27,46,0.22));
     }
 
     .story-eyebrow {
@@ -1323,7 +1346,12 @@
     </section>
 
     <!-- Data section -->
-    <section class="section" id="data" style="background: linear-gradient(180deg, rgba(107,92,231,0.03) 0%, transparent 100%);">
+    <!-- No background of its own — body's single gradient carries the whole
+         page uninterrupted. This section used to add its own light purple
+         wash starting at its own top edge, which re-introduced color right
+         where body's fade had already faded most of the way toward white,
+         reading as a visible seam between the hero and this section. -->
+    <section class="section" id="data">
       <div class="container">
         <!-- Hero shot — the richest screenshot (6 live callouts) is the
              section's visual anchor, paired directly with the section's own
@@ -1333,11 +1361,21 @@
              already verified symmetric for the stories below it. -->
         <div class="story hero-intro">
           <div class="story-shot loose" style="--glow: radial-gradient(circle, rgba(107,92,231,0.35), transparent 68%);">
-            <picture>
-              <source srcset="images/scan.webp" type="image/webp">
-              <img src="images/scan.png" width="760" height="1437" loading="lazy" decoding="async"
-                   alt="Labradoor camera view of a home with live callouts: Seller Motivation Score 93, $214K equity, pre-foreclosure, absentee owner, a 17-property portfolio and an assumable FHA loan">
-            </picture>
+            <!-- Dedicated clipping wrapper, not border-radius + mask-image
+                 stacked on the <img> itself — that combination is genuinely
+                 browser-dependent (both try to govern the same element's
+                 paint), which is what read as a visible white/light border
+                 around this image specifically. overflow:hidden here
+                 guarantees the corners are actually clipped; the drop-shadow
+                 still bleeds outward normally since overflow only clips
+                 child content, not the element's own filter output. -->
+            <div class="shot-clip">
+              <picture>
+                <source srcset="images/scan.webp" type="image/webp">
+                <img src="images/scan.png" width="760" height="1437" loading="lazy" decoding="async"
+                     alt="Labradoor camera view of a home with live callouts: Seller Motivation Score 93, $214K equity, pre-foreclosure, absentee owner, a 17-property portfolio and an assumable FHA loan">
+              </picture>
+            </div>
           </div>
           <div class="story-copy">
             <h2>See what nobody else does.</h2>
@@ -1452,7 +1490,7 @@
           </div>
           <div class="story-copy">
             <div class="story-eyebrow">Deal analyzer</div>
-            <h3>Underwrite the deal on the sidewalk.</h3>
+            <h3>Underwrite the deal instantly.</h3>
             <p class="story-lede">Rental, flip, and short-term rental models built in. Adjust price, down payment, rate, and term, and watch the verdict update &mdash; no spreadsheet, no waiting until you're back at your desk.</p>
             <ul class="feature-list">
               <li><span class="feature-check">✓</span><span><strong>Cash flow, cap rate, cash-on-cash and yield</strong> calculated together</span></li>
@@ -1478,8 +1516,8 @@
           </div>
           <div class="story-copy">
             <div class="story-eyebrow">Payment estimate</div>
-            <h3>Answer "can I actually afford this?" on the spot.</h3>
-            <p class="story-lede">A real payment snapshot, not a teaser number. Principal and interest, property tax, and insurance broken out so you can see exactly where the money goes &mdash; for a primary home or an investment property.</p>
+            <h3>Know what the home will really cost each month.</h3>
+            <p class="story-lede">See your estimated monthly payment at a glance, including principal and interest, property taxes, and insurance. Whether it&rsquo;s your next home or an investment property, you&rsquo;ll have a clearer picture before making a move.</p>
             <ul class="feature-list">
               <li><span class="feature-check">✓</span><span><strong>Primary or investment</strong> &mdash; switch modes and the assumptions follow</span></li>
               <li><span class="feature-check">✓</span><span><strong>Every line itemized</strong>, so nothing shows up as a surprise at closing</span></li>
@@ -1500,8 +1538,8 @@
       <div class="container">
         <div class="section-header">
           <div class="section-label">Plans</div>
-          <h2>Two ways to hunt.</h2>
-          <p>Start with instant intel on any home. Step up to Business when you prospect at scale.</p>
+          <h2>Choose how you unlock more insights.</h2>
+          <p>Unlock any home in seconds. Upgrade to Business to uncover opportunities at scale.</p>
         </div>
 
         <div class="tier-grid">
