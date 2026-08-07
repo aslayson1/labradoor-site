@@ -42,14 +42,14 @@
       background:
         radial-gradient(circle at top left, rgba(199,125,255,.18), transparent 35%),
         radial-gradient(circle at 85% 15%, rgba(78,205,196,.15), transparent 25%),
-        radial-gradient(circle at 50% 80%, rgba(107,92,231,.08), transparent 40%),
+        radial-gradient(circle at 50% 30%, rgba(107,92,231,.08), transparent 25%),
         /* One continuous fade across the entire document height, not a
            34%-of-body plateau — the old stop finished at ~34% of body's
            full ~7200px height (~2450px down), well before the page's
            light-background content actually ends (~6400px, where the dark
            .cta section takes over), so most of the page sat on flat white
            already. This spans the whole thing in one pass instead. */
-        linear-gradient(180deg, #EEF0FF 0%, #FFFFFF 100%);
+        linear-gradient(180deg, #EEF0FF 0%, #FFFFFF 65%);
       min-height: 100vh;
     }
 
@@ -939,18 +939,10 @@
       border-radius: 34px;
       filter: drop-shadow(0 30px 60px rgba(26,27,46,0.22));
     }
-    /* The "scan" screenshot's callout bubbles overflow past the phone bezel,
-       so unlike the other four shots it can't be cropped tight to the device
-       — it carries a sliver of its own light background on the LEFT and
-       RIGHT (where the callouts pushed the crop out), which doesn't exactly
-       match the page background and reads as a rectangle. Top/bottom have
-       almost no margin (the bezel nearly touches those edges already), so
-       only the sides are feathered — fading vertically too would clip into
-       the status bar and home indicator. */
+    /* scan.png/webp now have real alpha baked into all four edges (feathered
+       in the source file itself), so the fade is pixel-accurate regardless
+       of CSS mask-image browser quirks — no mask needed here anymore. */
     .story-shot.loose img {
-      -webkit-mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
-      mask-image: linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%);
-      /* Radius/shadow live on .shot-clip instead — see that rule. */
       border-radius: 0;
       filter: none;
     }
@@ -1539,7 +1531,7 @@
         <div class="section-header">
           <div class="section-label">Plans</div>
           <h2>Choose how you unlock more insights.</h2>
-          <p>Unlock any home in seconds. Upgrade to Business to uncover opportunities at scale.</p>
+          <p>Unlock any home in seconds.<br>Upgrade to Business when you&rsquo;re ready to uncover opportunities at scale.</p>
         </div>
 
         <div class="tier-grid">
