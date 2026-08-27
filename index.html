@@ -153,6 +153,9 @@
       padding: 8px 4px;
     }
     .login-link:hover { color: var(--purple); }
+    .hamburger { display: none; }
+    .menu-toggle-input { display: none; }
+    .mobile-menu { display: none; }
 
     /* Buttons */
     .btn {
@@ -1203,20 +1206,104 @@
          The App Store CTA still exists prominently in the hero below. */
       .header-inner {
         height: 64px;
+        /* .nav (the middle "auto" grid column) is hidden on mobile, but an
+           empty auto column still collapses to 0 width rather than
+           disappearing — the two "1fr" columns then split the row in half,
+           pinning .header-actions to the middle of the row instead of the
+           right edge. Two columns with space-between puts logo and actions
+           at the true left/right edges. */
+        grid-template-columns: auto auto;
+        justify-content: space-between;
+      }
+      .logo {
+        padding-left: 4px;
       }
       .logo-img {
         height: 40px;
       }
-      .header-actions .store-badge {
+      .header-actions {
+        gap: 0;
+      }
+      .header-actions .store-badge,
+      .login-link {
         display: none;
       }
-      .login-link {
-        font-size: 14px;
+
+      /* Hamburger, nested inside .header-actions so it keeps that grid
+         cell's justify-self:end alignment. Opens .mobile-menu below via the
+         checkbox hack — the site otherwise ships with no JS. */
+      .hamburger {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 5px;
+        width: 32px;
+        height: 32px;
         padding-right: 24px;
+        cursor: pointer;
+      }
+      .hamburger span {
+        display: block;
+        width: 22px;
+        height: 2px;
+        background: var(--navy-dark);
+        border-radius: 2px;
+        transition: transform 0.2s ease, opacity 0.2s ease;
+      }
+      .menu-toggle-input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .mobile-menu {
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: rgba(255,255,255,0.98);
+        backdrop-filter: blur(18px);
+        border-bottom: 1px solid rgba(45,49,84,0.08);
+        box-shadow: 0 20px 40px rgba(26,27,46,0.12);
+        padding: 4px 24px 12px;
+      }
+      .mobile-menu a {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 0;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--navy);
+        border-bottom: 1px solid var(--line);
+      }
+      .mobile-menu a:last-child {
+        border-bottom: none;
+      }
+      .mobile-menu svg,
+      .mobile-menu img {
+        width: 22px;
+        height: 22px;
+        flex-shrink: 0;
+        border-radius: 5px;
+      }
+      .menu-toggle-input:checked ~ .mobile-menu {
+        display: flex;
+      }
+      .menu-toggle-input:checked ~ .container .hamburger span:nth-child(1) {
+        transform: translateY(7px) rotate(45deg);
+      }
+      .menu-toggle-input:checked ~ .container .hamburger span:nth-child(2) {
+        opacity: 0;
+      }
+      .menu-toggle-input:checked ~ .container .hamburger span:nth-child(3) {
+        transform: translateY(-7px) rotate(-45deg);
       }
 
-      /* Hero: text first, phone mockup as a smaller supporting visual below
-         it — not a huge graphic dominating the whole first screen. */
+      /* Hero: text first, no phone mockup at all on mobile — the graphic
+         was the whole problem (dominated the first screen); the App Store
+         button above is already the call to action. */
       .hero {
         padding: 96px 0 64px;
       }
@@ -1234,14 +1321,7 @@
         width: 100%;
       }
       .hero-visual {
-        min-height: 0;
-        margin-top: 40px;
-      }
-      .phone {
-        width: 220px;
-      }
-      .glow {
-        inset: 10px;
+        display: none;
       }
     }
   </style>
@@ -1249,6 +1329,10 @@
 <body>
   <!-- Header -->
   <header class="header">
+    <!-- Checkbox-driven mobile menu — no JS needed. Must be a sibling of
+         .mobile-menu (not a descendant) for the :checked ~ selector below
+         to reach it; the <label for> wiring still works from anywhere. -->
+    <input type="checkbox" id="menu-toggle" class="menu-toggle-input">
     <div class="container header-inner">
       <a href="#" class="logo">
         <img src="logo.png" alt="Labradoor" class="logo-img">
@@ -1268,8 +1352,22 @@
           <span class="store-badge-text"><span>Get it on</span><strong>Chrome Web Store</strong></span>
         </a>
         <a href="https://app.labradoor.ai/auth" class="login-link">Log In</a>
+        <label for="menu-toggle" class="hamburger" aria-label="Menu">
+          <span></span><span></span><span></span>
+        </label>
       </div>
     </div>
+    <nav class="mobile-menu">
+      <a href="https://app.labradoor.ai/auth">Log In</a>
+      <a href="https://apps.apple.com/">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+        Download on the App Store
+      </a>
+      <a href="https://chromewebstore.google.com/detail/labradoor-retrieve-hidden/jpjclcijpicgmhciphdpknanljaaokah">
+        <img src="chrome-icon.png" alt="Chrome">
+        Get it on Chrome Web Store
+      </a>
+    </nav>
   </header>
 
   <main>
