@@ -1133,7 +1133,6 @@
         gap: 60px;
       }
       .hero-visual {
-        order: -1;
         min-height: 500px;
       }
       .phone {
@@ -1195,6 +1194,54 @@
       }
       .cta-card {
         padding: 60px 32px;
+      }
+
+      /* Compact header, Cal AI style — just the wordmark plus a single
+         unobtrusive login link. The two full store badges (each with a
+         two-line label) plus the login link no longer fit a phone-width
+         header at all; that's what was overflowing off the right edge.
+         The App Store CTA still exists prominently in the hero below. */
+      .header-inner {
+        height: 64px;
+      }
+      .logo-img {
+        height: 40px;
+      }
+      .header-actions .store-badge {
+        display: none;
+      }
+      .login-link {
+        font-size: 14px;
+        padding-right: 24px;
+      }
+
+      /* Hero: text first, phone mockup as a smaller supporting visual below
+         it — not a huge graphic dominating the whole first screen. */
+      .hero {
+        padding: 96px 0 64px;
+      }
+      .hero h1 {
+        margin-bottom: 16px;
+      }
+      .hero-subtitle {
+        font-size: 16px;
+        margin-bottom: 28px;
+      }
+      .hero-cta {
+        margin-bottom: 0;
+      }
+      .hero-cta .btn {
+        width: 100%;
+      }
+      .hero-visual {
+        min-height: 0;
+        margin-top: 40px;
+      }
+      .phone {
+        width: 220px;
+      }
+      .glow {
+        inset: 10px;
       }
     }
   </style>
