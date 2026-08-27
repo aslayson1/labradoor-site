@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Labradoor Business: Lead Generation for Agents &amp; Investors</title>
+  <meta name="description" content="Turn any street into a motivated-seller lead list, and every share into a branded touchpoint. Labradoor Business gives agents and investors the web platform, 20+ seller filters, and branded client shares." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --purple: #6B5CE7;
+      --purple-dark: #403A86;
+      --purple-light: #8B7CF7;
+      --navy: #2D3154;
+      --navy-dark: #1A1B2E;
+      --teal: #4ECDC4;
+      --teal-dark: #3BA99E;
+      --pink: #E056A0;
+      --text: #22253A;
+      --text-muted: #687087;
+      --line: rgba(45,49,84,0.08);
+      --radius-xl: 28px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(199,125,255,.18), transparent 35%),
+        radial-gradient(circle at 85% 15%, rgba(78,205,196,.15), transparent 25%),
+        linear-gradient(180deg, #EEF0FF 0%, #FAFBFF 34%, #FFFFFF 100%);
+      min-height: 100vh;
+      line-height: 1.7;
+    }
+
+    a { color: var(--purple); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .container {
+      width: min(1100px, calc(100% - 48px));
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      backdrop-filter: blur(18px);
+      background: rgba(255,255,255,0.75);
+      border-bottom: 1px solid rgba(45,49,84,0.06);
+    }
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 78px;
+      width: min(1200px, calc(100% - 48px));
+      margin: 0 auto;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      margin-left: -12px;
+    }
+    .logo-img {
+      height: 32px;
+      width: auto;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px 28px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 15px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: linear-gradient(135deg, var(--purple) 0%, var(--purple-light) 50%, var(--pink) 100%);
+      color: white;
+      box-shadow: 0 16px 40px rgba(107, 92, 231, 0.25);
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      text-decoration: none;
+      box-shadow: 0 20px 50px rgba(107, 92, 231, 0.35);
+    }
+    .btn-large {
+      padding: 18px 36px;
+      font-size: 16px;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .login-link {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--navy);
+    }
+    .login-link:hover { color: var(--purple); }
+
+    /* Hero */
+    .hero {
+      padding: 160px 0 40px;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 60px;
+      align-items: center;
+    }
+    .tier-badge {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: white;
+      background: linear-gradient(135deg, var(--purple), var(--pink));
+      margin-bottom: 18px;
+    }
+    .hero h1 {
+      font-size: clamp(34px, 4vw, 48px);
+      line-height: 1.1;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--navy-dark);
+      margin-bottom: 18px;
+    }
+    .hero-subtitle {
+      font-size: 18px;
+      line-height: 1.65;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+    }
+    .price-line {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--purple-dark);
+      margin-bottom: 28px;
+    }
+    .price-line span { color: var(--text-muted); font-weight: 500; }
+
+    .feature-list {
+      list-style: none;
+      margin: 0 0 36px;
+    }
+    .feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 15px;
+      color: var(--navy);
+    }
+    .feature-list li:last-child { border-bottom: none; }
+    .feature-check {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--purple) 0%, var(--purple-light) 50%, var(--pink) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 11px;
+      color: white;
+    }
+
+    .hero-visual {
+      position: relative;
+    }
+    .hero-visual::before {
+      content: "";
+      position: absolute;
+      inset: 6% 4%;
+      background:
+        radial-gradient(circle at 30% 38%, rgba(107,92,231,0.30), transparent 62%),
+        radial-gradient(circle at 78% 72%, rgba(78,205,196,0.26), transparent 60%);
+      filter: blur(64px);
+      z-index: 0;
+    }
+    .hero-visual img {
+      position: relative;
+      z-index: 1;
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    /* Trust / footnote row under the CTA */
+    .fine-print {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 16px;
+    }
+
+    /* Footer */
+    .footer {
+      padding: 32px 0;
+      border-top: 1px solid var(--line);
+      background: rgba(255,255,255,0.5);
+      margin-top: 80px;
+    }
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      color: var(--text-muted);
+      width: min(1200px, calc(100% - 48px));
+      margin: 0 auto;
+    }
+    .footer a {
+      color: var(--text-muted);
+    }
+    .footer a:hover { color: var(--purple); text-decoration: none; }
+    .footer-links {
+      display: flex;
+      gap: 28px;
+    }
+
+    @media (max-width: 900px) {
+      .hero-grid {
+        grid-template-columns: 1fr;
+        gap: 40px;
+      }
+    }
+    @media (max-width: 600px) {
+      /* Fixed-height header + full "Download Free" label wrapped to two
+         lines at phone widths, overflowing the fixed 78px and overlapping
+         the hero underneath. Auto height (via padding) plus a shorter
+         label keeps this from happening at any width. */
+      .header-inner {
+        height: auto;
+        padding: 14px 0;
+      }
+      .logo-img {
+        height: 26px;
+      }
+      .header-actions {
+        gap: 12px;
+      }
+      .header-actions .btn {
+        padding: 10px 16px;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      .login-link {
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      .hero { padding: 96px 0 40px; }
+      .footer-inner {
+        flex-direction: column;
+        gap: 20px;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a href="/" class="logo">
+        <img src="logo.png" alt="Labradoor" class="logo-img">
+      </a>
+      <div class="header-actions">
+        <a href="https://apps.apple.com/" class="btn">Download Free</a>
+        <a href="https://app.labradoor.ai/auth" class="login-link">Log In</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <div class="hero-grid">
+          <div>
+            <div class="tier-badge">For agents &amp; investors</div>
+            <h1>Turn any street into a motivated-seller lead list.</h1>
+            <p class="hero-subtitle">Labradoor Business adds the web platform for lead generation on top of everything in Pro &mdash; so every share becomes a branded touchpoint.</p>
+            <div class="price-line">Everything in Pro, <span>plus access to the Labradoor web platform for lead generation</span></div>
+
+            <ul class="feature-list">
+              <li><span class="feature-check">✓</span><span><strong>Prospect lead search</strong>: pull motivated-seller lists by city, ZIP, county, or map area</span></li>
+              <li><span class="feature-check">✓</span><span><strong>20+ motivated-seller filters</strong>: absentee, high equity, pre-foreclosure, portfolio owners, tenure &amp; more</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Farm any neighborhood</strong>: search your location or draw an area on the map</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Portfolio &amp; owner targeting</strong>: find investors and multi-property owners to recruit</span></li>
+              <li><span class="feature-check">✓</span><span><strong>Branded client shares</strong>: send professional property intel that keeps you top-of-mind</span></li>
+            </ul>
+
+            <a href="https://buy.stripe.com/00wfZi93f2Pc4Zx6ZE9Ve01" class="btn btn-large">Get Labradoor Business</a>
+            <p class="fine-print">Secure checkout via Stripe. Cancel anytime.</p>
+          </div>
+
+          <div class="hero-visual">
+            <picture>
+              <source srcset="images/surfaces.webp" type="image/webp">
+              <img src="images/surfaces.png" width="1808" height="1345" loading="lazy" decoding="async"
+                   alt="Labradoor running on all three surfaces at once: the iPhone app showing a Motivation Score with property insights, the web platform showing a map of scored off-market leads, and a detailed property intelligence panel">
+            </picture>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div>© 2026 Labradoor. Property intelligence for everyone.</div>
+      <div class="footer-links">
+        <a href="contact">Contact</a>
+        <a href="privacy">Privacy</a>
+        <a href="terms">Terms</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
