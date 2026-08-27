@@ -1305,7 +1305,7 @@
          was the whole problem (dominated the first screen); the App Store
          button above is already the call to action. */
       .hero {
-        padding: 96px 0 64px;
+        padding: 96px 0 32px;
       }
       .hero h1 {
         margin-bottom: 16px;
@@ -1322,6 +1322,13 @@
       }
       .hero-visual {
         display: none;
+      }
+
+      /* With no hero visual, the gap down to the next section's own 100px
+         top padding read as a lot of dead space before the first feature
+         screenshot. Tighter on mobile. */
+      .section {
+        padding: 56px 0;
       }
     }
   </style>
