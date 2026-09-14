@@ -12,7 +12,7 @@ Private-beta, browser-based editor for automatically detecting and protecting se
 6. Choose blackout, pixelation, or heavy blur and set tight safety padding.
 7. Protect, review, and download the finished video.
 
-The OCR engine runs locally in the browser. A full-video scan samples the source every 0.75 seconds, detects structured PII from word-level OCR coordinates, and interpolates matching boxes between samples. Failed OCR samples cause the affected export interval to be fully blacked out. Videos, OCR inputs, and output blobs are not uploaded by the page.
+The OCR engine runs locally in the browser. A full-video scan creates word-level OCR anchors every 0.75 seconds. Before export, a first playback pass measures vertical screen movement on every decoded frame. A second playback pass projects each tight OCR box through that measured motion path and corrects it against the surrounding OCR anchors. Failed OCR samples, unresolved motion, large frame gaps, saturated motion searches, or materially disagreeing anchors cause the affected frame to be fully blacked out. Videos, OCR inputs, and output blobs are not uploaded by the page.
 
 ## Detection rules
 
@@ -25,7 +25,7 @@ The OCR engine runs locally in the browser. A full-video scan samples the source
 
 ## Private-beta constraints
 
-- Sampling cannot prove that OCR found PII that appears only between samples.
+- OCR anchors are sampled, so the browser beta cannot prove it found PII that appears only between anchors. Per-frame motion tracking keeps detected text covered but cannot protect text that OCR never detected.
 - OCR can miss stylized, animated, obstructed, low-contrast, or motion-blurred text.
 - Owner-name detection depends on an owner label or known UI context.
 - Browser export uses the best MediaRecorder format available, typically WebM in Chrome. Server-side FFmpeg is required for consistent MP4 output.
@@ -43,10 +43,10 @@ The production version should use an authenticated server-side worker for frame-
 - Addresses containing apartment, suite, unit, and directional suffixes.
 - Phone numbers with parentheses, spaces, dots, dashes, and +1.
 - Owner labels above, beside, and on the same line as the name.
-- Constant and rapid vertical scrolling.
+- Constant, accelerating, decelerating, and abruptly reversing vertical scrolling.
 - PII entering, leaving, and re-entering the frame.
 - Motion blur, compression, low contrast, rotation, scale changes, and scene cuts.
 - Manual move, resize, add, remove, and category toggle behavior.
-- Failed OCR intervals are fully blacked out.
+- Failed OCR, unresolved motion, dropped-frame gaps, and disagreeing anchors are fully blacked out.
 - Export duration and audio alignment match the source.
 - Output is manually inspected frame by frame before publication.
