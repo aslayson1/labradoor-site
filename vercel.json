@@ -3,6 +3,19 @@
   "trailingSlash": false,
   "headers": [
     {
+      "source": "/api/redaction-token-verification",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    },
+    {
       "source": "/api/redaction-session",
       "headers": [
         {
