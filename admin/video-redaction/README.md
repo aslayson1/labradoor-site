@@ -17,7 +17,7 @@ New manual boxes default to one frame. The start and end controls can widen a co
 
 ## Processing boundary
 
-The browser receives a signed session that expires after four hours. The permanent `REDACTION_API_KEY` stays in the Vercel function and Modal secret. Videos upload directly from the browser to the authenticated Modal worker, so large sensitive bodies do not pass through Vercel.
+The browser receives a signed session that expires after four hours. The permanent `REDACTION_API_KEY` stays server-side. Modal first checks its local key and, when keys were rotated independently, asks the Labradoor Vercel verifier to validate the signed session. Videos upload directly from the browser to the authenticated Modal worker, so large sensitive bodies do not pass through Vercel.
 
 The worker:
 
@@ -35,11 +35,11 @@ An uncertain result reaches `needs_review`. It is not replaced with black footag
 
 ## Required Vercel environment variables
 
-- `REDACTION_API_KEY`: the exact same long secret configured for the Modal worker
+- `REDACTION_API_KEY`: a long server-side secret used to sign and verify browser sessions
 - `REDACTION_ADMIN_PASSWORD`: a separate strong password used only to open the admin editor
 - `REDACTION_API_BASE_URL`: optional override for the Modal API URL
 
-Environment values must be configured for each Vercel environment that should run the editor, then that environment must be redeployed.
+Environment values must be configured for each Vercel environment that should run the editor, then that environment must be redeployed. The Modal deployment keeps its own `REDACTION_API_KEY` for legacy service authentication, so rotating either deployment no longer breaks browser sessions.
 
 ## Detection rules
 
