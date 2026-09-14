@@ -1,6 +1,8 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 
 const {
@@ -73,7 +75,7 @@ test('constant-time text comparison returns the right result', () => {
 });
 
 test('session endpoint rejects missing origins and bad passwords', () => {
-  assert.equal(invokeSession({ origin: undefined }).statusCode, 403);
+  assert.equal(invokeSession({ origin: null }).statusCode, 403);
   assert.equal(invokeSession({ password: 'wrong-password' }).statusCode, 401);
 });
 
@@ -93,4 +95,29 @@ test('session endpoint returns an in-memory bearer session', () => {
     new Date(response.body.expiresAt).getTime() - Date.now();
   assert.ok(lifetime > (MAX_BROWSER_TOKEN_SECONDS - 5) * 1000);
   assert.ok(lifetime <= (MAX_BROWSER_TOKEN_SECONDS + 1) * 1000);
+});
+
+test('admin editor assets compile and use the server worker', () => {
+  const editorPath = path.join(
+    __dirname,
+    '..',
+    'admin',
+    'video-redaction',
+    'editor.js',
+  );
+  const htmlPath = path.join(
+    __dirname,
+    '..',
+    'admin',
+    'video-redaction',
+    'index.html',
+  );
+  const editor = fs.readFileSync(editorPath, 'utf8');
+  const html = fs.readFileSync(htmlPath, 'utf8');
+
+  assert.doesNotThrow(() => new Function(editor));
+  assert.match(editor, /ocr_every_n_frames:\s*1/);
+  assert.match(editor, /Authorization/);
+  assert.match(html, /automatic deletion within 24 hours/i);
+  assert.doesNotMatch(html, /never uploaded|stay on this device/i);
 });
