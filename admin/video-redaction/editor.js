@@ -159,8 +159,10 @@
       cache: 'no-store',
     });
     if (response.status === 401) {
-      expireSession('Your secure session expired. Sign in again to continue.');
-      throw new Error('Secure session expired');
+      expireSession(
+        'The redaction worker could not validate this session. This is a server connection problem, not an expired login.',
+      );
+      throw new Error('Redaction worker authentication failed');
     }
     return response;
   }
