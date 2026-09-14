@@ -121,3 +121,19 @@ test('admin editor assets compile and use the server worker', () => {
   assert.match(html, /automatic deletion within 24 hours/i);
   assert.doesNotMatch(html, /never uploaded|stay on this device/i);
 });
+
+test('redaction routes use restrictive response headers', () => {
+  const config = JSON.parse(
+    fs.readFileSync(path.join(__dirname, '..', 'vercel.json'), 'utf8'),
+  );
+  const editorHeaders = config.headers.find(
+    (item) => item.source === '/admin/video-redaction/:path*',
+  );
+  const values = new Map(
+    editorHeaders.headers.map((header) => [header.key, header.value]),
+  );
+
+  assert.match(values.get('Content-Security-Policy'), /frame-ancestors 'none'/);
+  assert.equal(values.get('Referrer-Policy'), 'no-referrer');
+  assert.equal(values.get('X-Frame-Options'), 'DENY');
+});
