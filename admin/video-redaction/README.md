@@ -1,52 +1,56 @@
 # Labradoor Video Redaction Admin
 
-Private-beta, browser-based editor for automatically detecting and protecting sensitive text in moving screen videos.
+Private admin editor for automatic, frame-accurate video PII redaction.
 
-## Current workflow
+## Workflow
 
-1. Choose a local MP4, MOV, or WebM file.
-2. Select addresses, owner names, phone numbers, and/or email addresses.
-3. Scan the current frame or the full video.
-4. Review the tight word-level masks.
-5. Click and drag a box to move it, drag its yellow corner to resize it, toggle a detected item, or draw an additional manual box.
-6. Choose blackout, pixelation, or heavy blur and set tight safety padding.
-7. Protect, review, and download the finished video.
+1. Sign in with the redaction admin password.
+2. Choose a local MP4, MOV, or WebM file.
+3. Select addresses, owner names, phone numbers, and/or email addresses.
+4. Choose blackout, pixelation, or heavy blur and set tight safety padding.
+5. Click **Detect, protect, and verify**.
+6. Review the independently verified MP4.
+7. If anything needs adjustment, seek the source to that exact frame and drag a tight correction box over the text.
+8. Reprocess the corrections and review the new verified output.
 
-The OCR engine runs locally in the browser. A full-video scan creates word-level OCR anchors every 0.75 seconds. Before export, a first playback pass measures vertical screen movement on every decoded frame. A second playback pass projects each tight OCR box through that measured motion path and corrects it against the surrounding OCR anchors. Failed OCR samples, unresolved motion, large frame gaps, saturated motion searches, or materially disagreeing anchors cause the affected frame to be fully blacked out. Videos, OCR inputs, and output blobs are not uploaded by the page.
+New manual boxes default to one frame. The start and end controls can widen a correction when several adjacent frames need it.
+
+## Processing boundary
+
+The browser receives a signed session that expires after four hours. The permanent `REDACTION_API_KEY` stays in the Vercel function and Modal secret. Videos upload directly from the browser to the authenticated Modal worker, so large sensitive bodies do not pass through Vercel.
+
+The worker:
+
+- decodes every frame with FFmpeg;
+- runs OCR and PII classification on every frame by default;
+- tracks each text region independently through translation, scale, and rotation;
+- resets stale tracking at scene changes;
+- renders tight word-level masks with selected padding;
+- verifies the encoded result using an independent OCR backend;
+- releases only an output that passes the verification gate;
+- stores originals, plans, quarantine files, and outputs in private job storage;
+- deletes job artifacts within the configured retention period, currently 24 hours.
+
+An uncertain result reaches `needs_review`. It is not replaced with black footage and cannot be downloaded until corrections pass verification.
+
+## Required Vercel environment variables
+
+- `REDACTION_API_KEY`: the exact same long secret configured for the Modal worker
+- `REDACTION_ADMIN_PASSWORD`: a separate strong password used only to open the admin editor
+- `REDACTION_API_BASE_URL`: optional override for the Modal API URL
+
+Environment values must be configured for each Vercel environment that should run the editor, then that environment must be redeployed.
 
 ## Detection rules
 
 - Email addresses use a structured email pattern.
 - Phone numbers support common US formatting and an optional country code.
 - Street addresses require a street number and recognized street suffix.
-- Owner names are detected only in the context of labels such as Owner, Homeowner, Property Owner, Owner Name, or Owner Information.
-- Category controls and individual detections can be disabled by the editor.
-- Masks use the OCR word bounding box plus user-controlled padding, rather than a card-sized region.
+- Owner names are detected beside or beneath labels such as Owner, Homeowner, Property Owner, Owner Name, or Owner Information.
+- Masks use detected word coordinates plus user-controlled padding, not a card-sized region.
 
-## Private-beta constraints
+## Safety limits
 
-- OCR anchors are sampled, so the browser beta cannot prove it found PII that appears only between anchors. Per-frame motion tracking keeps detected text covered but cannot protect text that OCR never detected.
-- OCR can miss stylized, animated, obstructed, low-contrast, or motion-blurred text.
-- Owner-name detection depends on an owner label or known UI context.
-- Browser export uses the best MediaRecorder format available, typically WebM in Chrome. Server-side FFmpeg is required for consistent MP4 output.
-- Audio is retained only when the browser exposes a source audio track through captureStream.
-- The route is excluded from search engines, but the current static site does not provide route-level authentication.
-- A human must review every finished video before publishing.
+No automatic vision system can recognize information that is unreadable in the source. The editor therefore keeps human review in the release workflow. If OCR, tracking, frame accounting, or independent verification is uncertain, the worker withholds the output for manual correction.
 
-## Production engine boundary
-
-The production version should use an authenticated server-side worker for frame-accurate FFmpeg decoding and encoding, GPU OCR on every relevant frame, optical-flow or feature tracking between detections, periodic re-detection, encrypted temporary storage, automatic deletion, and an independent verification pass. The current editor is designed to remain the control surface for that worker.
-
-## Acceptance tests
-
-- Each supported PII type alone and all four types together.
-- Addresses containing apartment, suite, unit, and directional suffixes.
-- Phone numbers with parentheses, spaces, dots, dashes, and +1.
-- Owner labels above, beside, and on the same line as the name.
-- Constant, accelerating, decelerating, and abruptly reversing vertical scrolling.
-- PII entering, leaving, and re-entering the frame.
-- Motion blur, compression, low contrast, rotation, scale changes, and scene cuts.
-- Manual move, resize, add, remove, and category toggle behavior.
-- Failed OCR, unresolved motion, dropped-frame gaps, and disagreeing anchors are fully blacked out.
-- Export duration and audio alignment match the source.
-- Output is manually inspected frame by frame before publication.
+Do not commit customer or homeowner footage to Git. Use synthetic text videos for CI and keep private regression footage in access-controlled storage.
