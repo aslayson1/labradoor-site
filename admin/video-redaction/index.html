@@ -49,7 +49,7 @@
         <div class="section"><div class="label"><span>Protection style</span></div><div class="seg" id="styles"><button data-style="blackout" class="on">Blackout</button><button data-style="pixelate">Pixelate</button><button data-style="blur">Heavy blur</button></div><div class="sub">Blackout is the safest option for private information.</div></div>
         <div class="section"><div class="label"><span>Safety padding</span><span id="paddingValue">24 px</span></div><input id="padding" type="range" min="8" max="80" value="24"></div>
         <div class="section"><div class="label"><span>Tracking confidence</span><span id="thresholdValue">78%</span></div><input id="threshold" type="range" min="55" max="95" value="78"><div class="sub">Below this threshold, the system blacks out the entire frame.</div></div>
-        <div class="section"><label class="toggle"><input id="failClosed" type="checkbox" checked><span><b>Fail closed</b><div class="sub">Never show the unprotected frame when tracking is uncertain.</div></span></label></div>
+        <div class="section"><label class="toggle"><input id="failClosed" type="checkbox" checked disabled><span><b>Fail closed · always on</b><div class="sub">Uncertain frames are fully blacked out and reported for review.</div></span></label></div>
         <div class="section actions"><button class="btn yellow" id="protect" disabled>Track & Protect</button><button class="btn secondary" id="replace">Choose another video</button><div class="progress" id="progress"><div class="bar"><span id="bar"></span></div><p id="progressText">Preparing video…</p></div><div class="report" id="report"></div></div>
       </aside>
     </section>
@@ -93,13 +93,13 @@
   q('styles').onclick=e=>{const b=e.target.closest('button');if(!b)return;style=b.dataset.style;[...q('styles').children].forEach(x=>x.classList.toggle('on',x===b));drawPreview()};
   q('padding').oninput=e=>{q('paddingValue').textContent=e.target.value+' px';drawPreview()};q('threshold').oninput=e=>q('thresholdValue').textContent=e.target.value+'%';
   const samplePatch=r=>{
-    const cols=24,rows=Math.max(8,Math.round(24*r.h/r.w)),data=[];wctx.drawImage(source,0,0,work.width,work.height);const im=wctx.getImageData(Math.max(0,Math.round(r.x)),Math.max(0,Math.round(r.y)),Math.max(1,Math.round(r.w)),Math.max(1,Math.round(r.h))).data;
+    const cols=24,rows=Math.max(8,Math.round(24*r.h/r.w)),data=[];const im=wctx.getImageData(Math.max(0,Math.round(r.x)),Math.max(0,Math.round(r.y)),Math.max(1,Math.round(r.w)),Math.max(1,Math.round(r.h))).data;
     const iw=Math.max(1,Math.round(r.w)),ih=Math.max(1,Math.round(r.h));
     for(let yy=0;yy<rows;yy++)for(let xx=0;xx<cols;xx++){const x=Math.min(iw-1,Math.round(xx*(iw-1)/(cols-1))),y=Math.min(ih-1,Math.round(yy*(ih-1)/(rows-1))),i=(y*iw+x)*4;data.push((im[i]*.299+im[i+1]*.587+im[i+2]*.114)|0)}
     return data;
   };
   const trackVertical=(base,last)=>{
-    const range=Math.min(140,Math.round(display.height*.16)),step=Math.max(2,Math.round(display.height/540));let best={score:Infinity,y:last.y};
+    wctx.drawImage(source,0,0,work.width,work.height);const range=Math.min(140,Math.round(display.height*.16)),step=Math.max(2,Math.round(display.height/540));let best={score:Infinity,y:last.y};
     for(let y=Math.max(0,Math.round(last.y-range));y<=Math.min(display.height-last.h,Math.round(last.y+range));y+=step){const candidate=samplePatch({...last,y}),n=Math.min(base.length,candidate.length);let d=0;for(let i=0;i<n;i++)d+=Math.abs(base[i]-candidate[i]);d/=n;if(d<best.score)best={score:d,y}}
     return{region:{...last,y:best.y},confidence:Math.max(0,Math.min(1,1-best.score/92))};
   };
@@ -107,14 +107,14 @@
   q('protect').onclick=async()=>{
     if(!region||processing)return;processing=true;source.pause();q('play').textContent='Play';q('protect').disabled=true;q('progress').style.display='block';q('report').style.display='none';q('output').style.display='none';reportRows=[];
     source.currentTime=0;await new Promise(r=>source.addEventListener('seeked',r,{once:true}));
-    let tracked={...region},base=samplePatch(tracked),chunks=[],frames=0,low=0,minConfidence=1,lastTime=-1;
-    const stream=display.captureStream(30),mime=supportedMime(),rec=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:10000000}:{videoBitsPerSecond:10000000});
+    wctx.drawImage(source,0,0,work.width,work.height);let tracked={...region},base=samplePatch(tracked),chunks=[],frames=0,low=0,minConfidence=1,lastTime=-1;
+    const stream=display.captureStream(30),sourceStream=source.captureStream?source.captureStream():null;sourceStream&&sourceStream.getAudioTracks().forEach(track=>stream.addTrack(track));const mime=supportedMime(),rec=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:10000000}:{videoBitsPerSecond:10000000});
     rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
     const done=new Promise(resolve=>rec.onstop=resolve);rec.start(500);source.muted=true;await source.play();
     await new Promise(resolve=>{
       const render=(now,meta)=>{
         if(source.ended){resolve();return}
-        if(meta.mediaTime!==lastTime){lastTime=meta.mediaTime;ctx.drawImage(source,0,0,display.width,display.height);const t=trackVertical(base,tracked);tracked=t.region;minConfidence=Math.min(minConfidence,t.confidence);frames++;const uncertain=t.confidence<+q('threshold').value/100;if(uncertain){low++;reportRows.push({time:meta.mediaTime,confidence:t.confidence});if(q('failClosed').checked){ctx.fillStyle='#050505';ctx.fillRect(0,0,display.width,display.height)}else paintMask(display,ctx,tracked,style)}else paintMask(display,ctx,tracked,style);q('bar').style.width=Math.min(100,source.currentTime/source.duration*100)+'%';q('progressText').textContent='Protecting '+format(source.currentTime)+' of '+format(source.duration)}
+        if(meta.mediaTime!==lastTime){lastTime=meta.mediaTime;ctx.drawImage(source,0,0,display.width,display.height);const t=trackVertical(base,tracked);tracked=t.region;minConfidence=Math.min(minConfidence,t.confidence);frames++;const uncertain=t.confidence<+q('threshold').value/100;if(uncertain){low++;reportRows.push({time:meta.mediaTime,confidence:t.confidence});ctx.fillStyle='#050505';ctx.fillRect(0,0,display.width,display.height)}else paintMask(display,ctx,tracked,style);q('bar').style.width=Math.min(100,source.currentTime/source.duration*100)+'%';q('progressText').textContent='Protecting '+format(source.currentTime)+' of '+format(source.duration)}
         source.requestVideoFrameCallback(render);
       };source.requestVideoFrameCallback(render);
     });
