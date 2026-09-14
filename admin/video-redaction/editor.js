@@ -242,8 +242,6 @@
     sourceFile = file;
     if (sourceUrl) URL.revokeObjectURL(sourceUrl);
     sourceUrl = URL.createObjectURL(file);
-    source.src = sourceUrl;
-    source.load();
     resetJob();
 
     source.onloadedmetadata = () => {
@@ -266,12 +264,17 @@
       drawFrame();
     };
     source.onerror = () => {
+      upload.hidden = true;
+      workspace.hidden = false;
       setJobStatus(
         'This browser cannot preview the video',
         'Convert it to an H.264 MP4 so you can review and edit exact frames.',
         'warn',
       );
     };
+
+    source.src = sourceUrl;
+    source.load();
   }
 
   byId('choose').addEventListener('click', () => fileInput.click());
