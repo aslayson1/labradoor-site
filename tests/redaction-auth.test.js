@@ -9,8 +9,10 @@ const {
   MAX_BROWSER_TOKEN_SECONDS,
   mintBrowserToken,
   safeTextEqual,
+  verifyBrowserToken,
 } = require('../lib/redaction-auth');
 const sessionHandler = require('../api/redaction-session');
+const verificationHandler = require('../api/redaction-token-verification');
 
 const SECRET = 'redaction-test-secret-that-is-long-enough';
 const PASSWORD = 'correct-horse-battery-staple';
@@ -58,6 +60,50 @@ function invokeSession({ password = PASSWORD, origin = 'https://labradoor.ai' } 
   }
 }
 
+function invokeVerification({
+  token = mintBrowserToken(SECRET).token,
+  method = 'POST',
+} = {}) {
+  const previousKey = process.env.REDACTION_API_KEY;
+  process.env.REDACTION_API_KEY = SECRET;
+
+  const response = {
+    headers: {},
+    statusCode: 200,
+    body: null,
+    ended: false,
+    setHeader(name, value) {
+      this.headers[name] = value;
+    },
+    status(value) {
+      this.statusCode = value;
+      return this;
+    },
+    json(value) {
+      this.body = value;
+      return this;
+    },
+    end() {
+      this.ended = true;
+      return this;
+    },
+  };
+
+  try {
+    verificationHandler(
+      {
+        method,
+        headers: { authorization: `Bearer ${token}` },
+      },
+      response,
+    );
+    return response;
+  } finally {
+    if (previousKey === undefined) delete process.env.REDACTION_API_KEY;
+    else process.env.REDACTION_API_KEY = previousKey;
+  }
+}
+
 test('token signer matches the worker token format', () => {
   const session = mintBrowserToken(SECRET, {
     ttlSeconds: 300,
@@ -67,6 +113,28 @@ test('token signer matches the worker token format', () => {
 
   assert.equal(session.token, KNOWN_TOKEN);
   assert.equal(session.expiresAt, 1_000_300_000);
+});
+
+test('token verifier accepts current tokens and rejects invalid values', () => {
+  assert.equal(verifyBrowserToken(KNOWN_TOKEN, SECRET, { now: 1_000_001 }), true);
+  assert.equal(verifyBrowserToken(KNOWN_TOKEN, SECRET, { now: 1_000_300 }), false);
+  assert.equal(
+    verifyBrowserToken(KNOWN_TOKEN, 'different-secret-that-is-long-enough', {
+      now: 1_000_001,
+    }),
+    false,
+  );
+  assert.equal(verifyBrowserToken('not-a-token', SECRET), false);
+});
+
+test('worker token verification endpoint fails closed', () => {
+  const accepted = invokeVerification();
+  assert.equal(accepted.statusCode, 204);
+  assert.equal(accepted.ended, true);
+  assert.equal(accepted.headers['Cache-Control'], 'no-store, max-age=0');
+
+  assert.equal(invokeVerification({ token: 'invalid' }).statusCode, 401);
+  assert.equal(invokeVerification({ method: 'GET' }).statusCode, 405);
 });
 
 test('constant-time text comparison returns the right result', () => {
@@ -118,6 +186,7 @@ test('admin editor assets compile and use the server worker', () => {
   assert.doesNotThrow(() => new Function(editor));
   assert.match(editor, /ocr_every_n_frames:\s*1/);
   assert.match(editor, /Authorization/);
+  assert.match(editor, /server connection problem/i);
   assert.match(html, /automatic deletion within 24 hours/i);
   assert.doesNotMatch(html, /never uploaded|stay on this device/i);
 });
