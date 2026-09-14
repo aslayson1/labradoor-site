@@ -16,7 +16,7 @@
       ]
     },
     {
-      "source": "/admin/video-redaction/(.*)",
+      "source": "/admin/video-redaction/:path*",
       "headers": [
         {
           "key": "Content-Security-Policy",
