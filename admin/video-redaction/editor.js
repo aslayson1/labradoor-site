@@ -236,8 +236,8 @@
 
   function loadVideo(file) {
     if (!file || busy) return;
-    if (file.size > 2 * 1024 * 1024 * 1024) {
-      setJobStatus('Video is too large', 'The upload limit is 2 GB.', 'warn');
+    if (file.size > 1024 * 1024 * 1024) {
+      setJobStatus('Video is too large', 'The upload limit is 1 GB.', 'warn');
       return;
     }
 
@@ -718,42 +718,152 @@
     drawFrame();
   }
 
-  function uploadJob(config, version) {
-    return new Promise((resolve, reject) => {
-      const data = new FormData();
-      data.append('video', sourceFile, sourceFile.name);
-      data.append('config_json', JSON.stringify(config));
+  function retryableUploadError(message, retryable = true) {
+    const error = new Error(message);
+    error.retryable = retryable;
+    return error;
+  }
 
+  async function startUploadSession(config) {
+    let response;
+    try {
+      response = await apiFetch('/v1/uploads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: sourceFile.name,
+          content_type: sourceFile.type || 'application/octet-stream',
+          total_bytes: sourceFile.size,
+          config,
+        }),
+      });
+    } catch (error) {
+      if (error.message === 'Secure session expired') throw error;
+      throw new Error('Could not start the resumable private upload');
+    }
+
+    if (!response.ok) throw new Error(await readError(response));
+    const session = await response.json();
+    const expectedParts = Math.ceil(sourceFile.size / Number(session.chunk_size));
+    if (
+      !session.upload_id ||
+      !Number.isInteger(session.chunk_size) ||
+      session.chunk_size <= 0 ||
+      session.total_parts !== expectedParts
+    ) {
+      throw new Error('The worker returned an invalid upload session');
+    }
+    return session;
+  }
+
+  function sendUploadPart(session, partNumber, blob, uploadedBefore, version) {
+    return new Promise((resolve, reject) => {
       const request = new XMLHttpRequest();
-      request.open('POST', `${apiBaseUrl}/v1/jobs`);
+      request.open(
+        'PUT',
+        `${apiBaseUrl}/v1/uploads/${encodeURIComponent(
+          session.upload_id,
+        )}/parts/${partNumber}`,
+      );
       request.setRequestHeader('Authorization', `Bearer ${sessionToken}`);
+      request.setRequestHeader('Content-Type', 'application/octet-stream');
       request.responseType = 'json';
+      request.timeout = 120000;
+
       request.upload.addEventListener('progress', (event) => {
         if (!event.lengthComputable || version !== runVersion) return;
+        const uploaded = Math.min(sourceFile.size, uploadedBefore + event.loaded);
         showProgress(
-          2 + (event.loaded / event.total) * 10,
-          `Private upload ${Math.round((event.loaded / event.total) * 100)}%`,
+          2 + (uploaded / sourceFile.size) * 10,
+          `Private upload ${Math.round((uploaded / sourceFile.size) * 100)}%`,
         );
       });
+
       request.addEventListener('load', () => {
-        if (request.status === 202) {
-          resolve(request.response);
+        if (request.status === 204) {
+          resolve();
           return;
         }
         const message =
           request.response?.detail ||
           request.response?.error ||
-          `Upload failed with status ${request.status}`;
+          `Upload part failed with status ${request.status}`;
         if (request.status === 401) {
           expireSession('Your secure session expired. Sign in again to continue.');
+          reject(retryableUploadError(message, false));
+          return;
         }
-        reject(new Error(message));
+        reject(retryableUploadError(message, request.status >= 500 || request.status === 0));
       });
       request.addEventListener('error', () => {
-        reject(new Error('The private upload could not reach the processing worker'));
+        reject(retryableUploadError('The upload connection was interrupted'));
       });
-      request.send(data);
+      request.addEventListener('timeout', () => {
+        reject(retryableUploadError('The upload connection timed out'));
+      });
+      request.addEventListener('abort', () => {
+        reject(retryableUploadError('The upload was interrupted'));
+      });
+      request.send(blob);
     });
+  }
+
+  async function uploadPartWithRetry(
+    session,
+    partNumber,
+    blob,
+    uploadedBefore,
+    version,
+  ) {
+    const retryDelays = [0, 750, 2000, 5000];
+    let lastError = null;
+
+    for (let attempt = 0; attempt < retryDelays.length; attempt += 1) {
+      if (version !== runVersion) {
+        throw retryableUploadError('The upload was replaced by another video', false);
+      }
+      if (retryDelays[attempt]) await delay(retryDelays[attempt]);
+      try {
+        await sendUploadPart(session, partNumber, blob, uploadedBefore, version);
+        return;
+      } catch (error) {
+        lastError = error;
+        if (!error.retryable || attempt === retryDelays.length - 1) throw error;
+        const completedPercent = Math.round((uploadedBefore / sourceFile.size) * 100);
+        showProgress(
+          2 + (uploadedBefore / sourceFile.size) * 10,
+          `Connection interrupted at ${completedPercent}%. Retrying safely…`,
+        );
+      }
+    }
+    throw lastError || new Error('The resumable upload stopped');
+  }
+
+  async function uploadJob(config, version) {
+    const session = await startUploadSession(config);
+
+    for (let partNumber = 0; partNumber < session.total_parts; partNumber += 1) {
+      const startByte = partNumber * session.chunk_size;
+      const endByte = Math.min(sourceFile.size, startByte + session.chunk_size);
+      const blob = sourceFile.slice(startByte, endByte, 'application/octet-stream');
+      await uploadPartWithRetry(session, partNumber, blob, startByte, version);
+    }
+
+    showProgress(13, 'Validating completed private upload…');
+    let response;
+    try {
+      response = await apiFetch(
+        `/v1/uploads/${encodeURIComponent(session.upload_id)}/complete`,
+        { method: 'POST' },
+      );
+    } catch (error) {
+      if (error.message === 'Secure session expired') throw error;
+      throw new Error(
+        'The video finished uploading, but the worker could not validate it. Please try again.',
+      );
+    }
+    if (!response.ok) throw new Error(await readError(response));
+    return response.json();
   }
 
   function jobProgress(record) {
