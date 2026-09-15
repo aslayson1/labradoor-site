@@ -186,6 +186,10 @@ test('admin editor assets compile and use the server worker', () => {
   assert.doesNotThrow(() => new Function(editor));
   assert.match(editor, /ocr_every_n_frames:\s*1/);
   assert.match(editor, /Authorization/);
+  assert.match(editor, /\/v1\/uploads/);
+  assert.match(editor, /sourceFile\.slice/);
+  assert.match(editor, /retryDelays/);
+  assert.doesNotMatch(editor, /new FormData/);
   assert.match(editor, /server connection problem/i);
   assert.match(html, /automatic deletion within 24 hours/i);
   assert.doesNotMatch(html, /never uploaded|stay on this device/i);
