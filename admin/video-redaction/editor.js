@@ -946,12 +946,6 @@
         }
 
         consecutiveFailures += 1;
-        if (consecutiveFailures > 8) {
-          throw new Error(
-            'The worker is still processing, but this browser could not reconnect. ' +
-              'Keep this video selected and try again in a moment.',
-          );
-        }
 
         const reconnectDelay = Math.min(
           15_000,
@@ -961,7 +955,9 @@
         showProgress(progressPercent, 'Connection interrupted · reconnecting to worker…');
         setJobStatus(
           'Reconnecting to worker',
-          `The private job is still running. Retry ${consecutiveFailures} of 8…`,
+          consecutiveFailures <= 3
+            ? `The private job is still running. Reconnect attempt ${consecutiveFailures}…`
+            : 'The private job is still running. This page will keep reconnecting automatically.',
           'warn',
         );
         await delay(reconnectDelay);
