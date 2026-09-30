@@ -900,12 +900,30 @@
 
   function updateJobProgress(record) {
     const label = statusLabels[record.status] || 'Processing video';
-    showProgress(jobProgress(record), label);
+    const currentFrame = Number(record.progress_current);
+    const totalFramesForStage = Number(record.progress_total);
+    const hasFrameProgress =
+      Number.isInteger(currentFrame) &&
+      currentFrame >= 0 &&
+      Number.isInteger(totalFramesForStage) &&
+      totalFramesForStage > 0 &&
+      (record.status === 'analyzing' || record.status === 'verifying');
+    const frameDetail = hasFrameProgress
+      ? `Frame ${Math.min(currentFrame, totalFramesForStage).toLocaleString()} of ${totalFramesForStage.toLocaleString()}`
+      : '';
+    const percent = Math.round(Number(record.progress || 0) * 100);
+
+    showProgress(
+      jobProgress(record),
+      frameDetail ? `${label} · ${frameDetail}` : label,
+    );
     setJobStatus(
       label,
       record.status === 'queued'
         ? 'The GPU worker may need a moment to start.'
-        : `Job ${record.id.slice(0, 8)} · ${Math.round(Number(record.progress || 0) * 100)}%`,
+        : frameDetail
+        ? `${frameDetail} · ${percent}%`
+        : `Job ${record.id.slice(0, 8)} · ${percent}%`,
       record.status === 'failed' || record.status === 'needs_review' ? 'warn' : '',
     );
   }
