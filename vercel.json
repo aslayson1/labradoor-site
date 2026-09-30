@@ -57,15 +57,31 @@
   "rewrites": [
     {
       "source": "/blog",
-      "destination": "https://withmoment.io/publication/labradoor/blog"
+      "destination": "https://www.withmoment.io/publication/labradoor/blog"
     },
     {
       "source": "/blog/:path*",
-      "destination": "https://withmoment.io/publication/labradoor/blog/:path*"
+      "destination": "https://www.withmoment.io/publication/labradoor/blog/:path*"
     },
     {
       "source": "/sitemap.xml",
-      "destination": "https://withmoment.io/publication/labradoor/sitemap.xml"
+      "destination": "https://www.withmoment.io/publication/labradoor/sitemap.xml"
+    },
+    {
+      "source": "/_next/static/:path*",
+      "destination": "https://www.withmoment.io/_next/static/:path*"
+    },
+    {
+      "source": "/_next/image",
+      "destination": "https://www.withmoment.io/_next/image"
+    },
+    {
+      "source": "/labradoor-logo.png",
+      "destination": "https://www.withmoment.io/labradoor-logo.png"
+    },
+    {
+      "source": "/api/content/track",
+      "destination": "https://www.withmoment.io/api/content/track"
     }
   ]
 }
