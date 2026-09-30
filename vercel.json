@@ -53,5 +53,19 @@
         }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/blog",
+      "destination": "https://withmoment.io/publication/labradoor/blog"
+    },
+    {
+      "source": "/blog/:path*",
+      "destination": "https://withmoment.io/publication/labradoor/blog/:path*"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "https://withmoment.io/publication/labradoor/sitemap.xml"
+    }
   ]
 }
