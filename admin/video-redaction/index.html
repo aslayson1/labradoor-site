@@ -110,8 +110,9 @@
           <div class="section">
             <div class="label"><span>Tight safety padding</span><span id="paddingValue">6 px</span></div>
             <input id="padding" type="range" min="2" max="30" value="6">
-            <div class="label" style="margin-top:14px"><span>Minimum OCR confidence</span><span id="confidenceValue">50%</span></div>
-            <input id="confidence" type="range" min="25" max="85" value="50">
+            <div class="label" style="margin-top:14px"><span>Detection sensitivity</span><span id="confidenceValue">60% · High recall</span></div>
+            <input id="confidence" type="range" min="25" max="85" value="60">
+            <div class="sub">Higher sensitivity masks more uncertain text. Independent verification still checks every decoded frame.</div>
           </div>
 
           <div class="section actions">

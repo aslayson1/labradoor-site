@@ -684,9 +684,27 @@
   byId('padding').addEventListener('input', () => {
     byId('paddingValue').textContent = `${byId('padding').value} px`;
   });
+  function detectionSensitivityLabel() {
+    const sensitivity = Number(byId('confidence').value);
+    if (sensitivity >= 75) return `${sensitivity}% · Maximum recall`;
+    if (sensitivity >= 60) return `${sensitivity}% · High recall`;
+    if (sensitivity >= 45) return `${sensitivity}% · Balanced`;
+    return `${sensitivity}% · Strict`;
+  }
+
+  function minimumOcrConfidence() {
+    // Higher visible sensitivity should include more uncertain OCR, not less.
+    // 25% sensitivity -> 85% OCR confidence; 85% sensitivity -> 25%.
+    return Math.max(
+      0.25,
+      Math.min(0.85, (110 - Number(byId('confidence').value)) / 100),
+    );
+  }
+
   byId('confidence').addEventListener('input', () => {
-    byId('confidenceValue').textContent = `${byId('confidence').value}%`;
+    byId('confidenceValue').textContent = detectionSensitivityLabel();
   });
+  byId('confidenceValue').textContent = detectionSensitivityLabel();
 
   function selectedKinds() {
     return Array.from(document.querySelectorAll('[data-kind]:checked')).map(
@@ -699,7 +717,7 @@
       pii_kinds: selectedKinds(),
       style: protectionStyle,
       padding_pixels: Number(byId('padding').value),
-      minimum_ocr_confidence: Number(byId('confidence').value) / 100,
+      minimum_ocr_confidence: minimumOcrConfidence(),
       ocr_every_n_frames: 1,
       max_tracking_gap_frames: 8,
       minimum_tracking_confidence: 0.55,
@@ -896,46 +914,119 @@
     new Promise((resolve) => setTimeout(resolve, milliseconds));
 
   async function pollJob(jobId, version) {
-    while (version === runVersion) {
-      const response = await apiFetch(`/v1/jobs/${encodeURIComponent(jobId)}`);
-      if (!response.ok) throw new Error(await readError(response));
-      currentJob = await response.json();
-      updateJobProgress(currentJob);
+    let consecutiveFailures = 0;
 
-      if (terminalStatuses.has(currentJob.status)) {
-        await finishJob(version);
-        return;
+    while (version === runVersion) {
+      try {
+        const response = await apiFetch(`/v1/jobs/${encodeURIComponent(jobId)}`);
+        if (!response.ok) {
+          if (response.status >= 500) {
+            throw new Error(await readError(response));
+          }
+          throw retryableUploadError(await readError(response), false);
+        }
+
+        currentJob = await response.json();
+        consecutiveFailures = 0;
+        updateJobProgress(currentJob);
+
+        if (terminalStatuses.has(currentJob.status)) {
+          await finishJob(version);
+          return;
+        }
+        await delay(2000);
+      } catch (error) {
+        if (version !== runVersion) return;
+        if (
+          error.message === 'Secure session expired' ||
+          error.message === 'Redaction worker authentication failed' ||
+          error.retryable === false
+        ) {
+          throw error;
+        }
+
+        consecutiveFailures += 1;
+        if (consecutiveFailures > 8) {
+          throw new Error(
+            'The worker is still processing, but this browser could not reconnect. ' +
+              'Keep this video selected and try again in a moment.',
+          );
+        }
+
+        const reconnectDelay = Math.min(
+          15_000,
+          1000 * 2 ** Math.min(consecutiveFailures - 1, 4),
+        );
+        const progressPercent = currentJob ? jobProgress(currentJob) : 14;
+        showProgress(progressPercent, 'Connection interrupted · reconnecting to worker…');
+        setJobStatus(
+          'Reconnecting to worker',
+          `The private job is still running. Retry ${consecutiveFailures} of 8…`,
+          'warn',
+        );
+        await delay(reconnectDelay);
       }
-      await delay(2000);
     }
   }
 
   async function fetchReview() {
-    const response = await apiFetch(
-      `/v1/jobs/${encodeURIComponent(currentJob.id)}/review`,
-    );
-    if (!response.ok) throw new Error(await readError(response));
-    currentReview = await response.json();
-    totalFrames = Number(currentReview?.result?.total_frames || 0);
-    renderReview();
-    renderCorrections();
+    let lastError = null;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        const response = await apiFetch(
+          `/v1/jobs/${encodeURIComponent(currentJob.id)}/review`,
+        );
+        if (!response.ok) throw new Error(await readError(response));
+        currentReview = await response.json();
+        totalFrames = Number(currentReview?.result?.total_frames || 0);
+        renderReview();
+        renderCorrections();
+        return;
+      } catch (error) {
+        if (
+          error.message === 'Secure session expired' ||
+          error.message === 'Redaction worker authentication failed'
+        ) {
+          throw error;
+        }
+        lastError = error;
+        if (attempt < 4) await delay(Math.min(8000, 1000 * 2 ** attempt));
+      }
+    }
+    throw lastError || new Error('Could not load the verification review');
   }
 
   async function loadVerifiedOutput() {
-    const response = await apiFetch(
-      `/v1/jobs/${encodeURIComponent(currentJob.id)}/download`,
-    );
-    if (!response.ok) throw new Error(await readError(response));
-    const blob = await response.blob();
-    resetOutput();
-    outputUrl = URL.createObjectURL(blob);
-    result.src = outputUrl;
-    output.hidden = false;
-    outputMeta.textContent = `${totalFrames.toLocaleString()} verified frames · ${(
-      blob.size /
-      1024 /
-      1024
-    ).toFixed(1)} MB MP4`;
+    let lastError = null;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        const response = await apiFetch(
+          `/v1/jobs/${encodeURIComponent(currentJob.id)}/download`,
+        );
+        if (!response.ok) throw new Error(await readError(response));
+        const blob = await response.blob();
+        resetOutput();
+        outputUrl = URL.createObjectURL(blob);
+        result.src = outputUrl;
+        output.hidden = false;
+        outputMeta.textContent = `${totalFrames.toLocaleString()} verified frames · ${(
+          blob.size /
+          1024 /
+          1024
+        ).toFixed(1)} MB MP4`;
+        return;
+      } catch (error) {
+        if (
+          error.message === 'Secure session expired' ||
+          error.message === 'Redaction worker authentication failed'
+        ) {
+          throw error;
+        }
+        lastError = error;
+        if (attempt < 4) await delay(Math.min(8000, 1000 * 2 ** attempt));
+      }
+    }
+    throw lastError || new Error('Could not load the verified output');
   }
 
   async function finishJob(version) {
