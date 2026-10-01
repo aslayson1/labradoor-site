@@ -209,7 +209,7 @@ test('admin editor assets compile and use the server worker', () => {
   assert.match(editor, /motionX/);
   assert.match(editor, /Preparing manual render/);
   assert.match(editor, /Automatic detection is off/);
-  assert.match(html, /manual-tracker\.js\?v=20261001-fast-motion/);
+  assert.match(html, /manual-tracker\.js\?v=20261001-real-loss-threshold/);
   assert.match(editor, /endCorrectionHere/);
   assert.match(html, /End mask before this frame/);
   assert.doesNotMatch(editor, /wideSearch/);
@@ -233,4 +233,16 @@ test('redaction routes use restrictive response headers', () => {
   assert.match(values.get('Content-Security-Policy'), /frame-ancestors 'none'/);
   assert.equal(values.get('Referrer-Policy'), 'no-referrer');
   assert.equal(values.get('X-Frame-Options'), 'DENY');
+});
+
+
+test('Manual masking UI should not expose automatic sensitivity controls', () => {
+  const html = fs.readFileSync(
+    path.join(__dirname, '..', 'admin', 'video-redaction', 'index.html'),
+    'utf8',
+  );
+  assert.match(html, /Protect private text manually/);
+  assert.match(html, /Manual masks use a fixed 6 px safety edge/);
+  assert.match(html, /<div hidden aria-hidden="true">[\s\S]*id="confidence"/);
+  assert.match(html, /Run automatic detection instead/);
 });
