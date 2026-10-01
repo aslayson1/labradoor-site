@@ -568,7 +568,7 @@
           dy: expectedMotion.dy * trackingScale,
         },
         elapsedSeconds: delta,
-        minimumDenseIdentity: 0.82,
+        minimumAnchorCorrelation: 0.82,
       },
     );
     return {
