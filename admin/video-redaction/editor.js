@@ -37,6 +37,7 @@
   const endTime = byId('endTime');
   const correctionKind = byId('correctionKind');
   const trackingMode = byId('trackingMode');
+  const endCorrectionHere = byId('endCorrectionHere');
   const removeCorrection = byId('removeCorrection');
   const applyCorrections = byId('applyCorrections');
   const output = byId('output');
@@ -89,6 +90,8 @@
   let runVersion = 0;
   let animationFrame = 0;
   const previewTrackers = new Map();
+  const trackingCanvas = document.createElement('canvas');
+  const trackingContext = trackingCanvas.getContext('2d', { willReadFrequently: true });
   const previewScratch = document.createElement('canvas');
   const previewScratchContext = previewScratch.getContext('2d');
   const previewStrongMatch = 0.38;
@@ -460,7 +463,7 @@
 
     let image;
     try {
-      image = context.getImageData(x1, y1, width, height);
+      image = trackingContext.getImageData(x1, y1, width, height);
     } catch {
       return null;
     }
@@ -546,7 +549,7 @@
 
     let searchImage;
     try {
-      searchImage = context.getImageData(
+      searchImage = trackingContext.getImageData(
         searchX1,
         searchY1,
         Math.max(1, searchX2 - searchX1),
