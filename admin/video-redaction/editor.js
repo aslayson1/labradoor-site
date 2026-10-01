@@ -590,6 +590,7 @@
     let magnitudeTotal = 0;
     let weightedTotal = 0;
     let weightedCandidateSum = 0;
+    let weightedTemplateSum = 0;
     const values = [];
 
     for (const sample of samples) {
@@ -620,11 +621,13 @@
       orientationTotal += orientationScore * weight;
       magnitudeTotal += magnitudeScore * weight;
       weightedCandidateSum += value * weight;
+      weightedTemplateSum += sample.value * weight;
       weightedTotal += weight;
       values.push({ value, weight });
     }
 
     const candidateMean = weightedCandidateSum / Math.max(1, weightedTotal);
+    const templateMean = weightedTemplateSum / Math.max(1, weightedTotal);
     let covariance = 0;
     let candidateVariance = 0;
     let templateVariance = 0;
@@ -632,8 +635,8 @@
       const weight = values[index].weight;
       const a = samples[index].value;
       const b = values[index].value;
-      covariance += weight * (a - candidateMean) * (b - candidateMean);
-      templateVariance += weight * (a - candidateMean) ** 2;
+      covariance += weight * (a - templateMean) * (b - candidateMean);
+      templateVariance += weight * (a - templateMean) ** 2;
       candidateVariance += weight * (b - candidateMean) ** 2;
     }
     const correlation =
@@ -665,7 +668,9 @@
       box,
       template.contextSamples || [],
     );
-    return coreScore * 0.96 + contextScore * 0.04;
+    return (template.contextSamples || []).length
+      ? coreScore * 0.96 + contextScore * 0.04
+      : coreScore;
   }
 
   function boxIoU(a, b) {
