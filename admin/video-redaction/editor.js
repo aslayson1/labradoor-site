@@ -52,7 +52,7 @@
   const terminalStatuses = new Set(['complete', 'needs_review', 'failed', 'cancelled']);
   const statusLabels = {
     queued: 'Worker starting',
-    analyzing: 'Detecting private text frame by frame',
+    analyzing: 'Inspecting frames and detecting private text',
     redacting: 'Rendering tight protection masks',
     verifying: 'Running independent verification',
     needs_review: 'Manual review required',
