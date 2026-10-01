@@ -92,8 +92,14 @@
       variance += sample.weight * (sample.value - mean) ** 2;
     }
 
+    const identitySamples = samples
+      .slice()
+      .sort((a, b) => b.magnitude - a.magnitude)
+      .slice(0, Math.max(20, Math.round(samples.length * 0.38)));
+
     return {
       samples,
+      identitySamples,
       mean,
       deviation: Math.sqrt(Math.max(1, variance / Math.max(1, totalWeight))),
       width,
@@ -167,6 +173,57 @@
     return correlationScore * 0.62 + edgeScore * 0.23 + appearanceScore * 0.15;
   }
 
+  function scoreIdentityEdges(frame, box, template) {
+    const samples = template?.identitySamples || [];
+    if (!samples.length) return 0;
+
+    let matchedWeight = 0;
+    let totalWeight = 0;
+
+    for (const sample of samples) {
+      const x = box.x1 + sample.fx * (box.x2 - box.x1);
+      const y = box.y1 + sample.fy * (box.y2 - box.y1);
+      if (x < 1 || y < 1 || x >= frame.width - 1 || y >= frame.height - 1) {
+        continue;
+      }
+
+      const current = gradientAt(frame, x, y);
+      const weight = Math.max(1, sample.weight);
+      const denominator = Math.max(
+        1,
+        sample.magnitude * current.magnitude,
+      );
+      const cosine =
+        (sample.gx * current.gx + sample.gy * current.gy) / denominator;
+      const orientationScore = clamp((cosine + 1) / 2, 0, 1);
+      const magnitudeRatio =
+        Math.min(sample.magnitude, current.magnitude) /
+        Math.max(1, Math.max(sample.magnitude, current.magnitude));
+      const present =
+        current.magnitude >= Math.max(7, sample.magnitude * 0.34) &&
+        orientationScore >= 0.58;
+
+      matchedWeight +=
+        weight *
+        (present
+          ? orientationScore * 0.62 + magnitudeRatio * 0.38
+          : 0);
+      totalWeight += weight;
+    }
+
+    return matchedWeight / Math.max(1, totalWeight);
+  }
+
+  function visibleFraction(box, width, height) {
+    const x1 = Math.max(0, box.x1);
+    const y1 = Math.max(0, box.y1);
+    const x2 = Math.min(width, box.x2);
+    const y2 = Math.min(height, box.y2);
+    const visibleArea = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+    const area = Math.max(1, (box.x2 - box.x1) * (box.y2 - box.y1));
+    return visibleArea / area;
+  }
+
   function boxIoU(a, b) {
     const x1 = Math.max(a.x1, b.x1);
     const y1 = Math.max(a.y1, b.y1);
@@ -179,17 +236,13 @@
     return intersection / Math.max(1, areaA + areaB - intersection);
   }
 
-  function translate(box, dx, dy, width, height) {
-    return clampBox(
-      {
-        x1: box.x1 + dx,
-        y1: box.y1 + dy,
-        x2: box.x2 + dx,
-        y2: box.y2 + dy,
-      },
-      width,
-      height,
-    );
+  function translate(box, dx, dy) {
+    return {
+      x1: box.x1 + dx,
+      y1: box.y1 + dy,
+      x2: box.x2 + dx,
+      y2: box.y2 + dy,
+    };
   }
 
   function findBestMatch(frame, currentBox, recentTemplate, anchorTemplate, options = {}) {
@@ -201,9 +254,42 @@
       currentBox,
       Number(expectedMotion.dx) || 0,
       Number(expectedMotion.dy) || 0,
+    );
+    const predictedVisibleFraction = visibleFraction(
+      predicted,
       frame.width,
       frame.height,
     );
+    const currentVisibleFraction = visibleFraction(
+      currentBox,
+      frame.width,
+      frame.height,
+    );
+    const motionMagnitude = Math.hypot(
+      Number(expectedMotion.dx) || 0,
+      Number(expectedMotion.dy) || 0,
+    );
+    const movingOutward =
+      motionMagnitude >= 0.8 &&
+      predictedVisibleFraction + 0.04 < currentVisibleFraction;
+
+    // Never pin a tracked box to the screen edge. If the motion model says
+    // the selected text is leaving the visible frame, allow the occurrence
+    // to end instead of forcing a replacement match somewhere on-screen.
+    if (movingOutward && predictedVisibleFraction < 0.58) {
+      return {
+        box: predicted,
+        score: 0,
+        recentScore: 0,
+        anchorScore: 0,
+        identityScore: 0,
+        strong: false,
+        exitedFrame: true,
+        predicted,
+        predictedVisibleFraction,
+        movement: motionMagnitude,
+      };
+    }
 
     const xRadius = Math.max(
       10,
@@ -229,6 +315,11 @@
       const candidate = { x1: x, y1: y, x2: x + width, y2: y + height };
       const recentScore = scoreTemplate(frame, candidate, recentTemplate);
       const anchorScore = scoreTemplate(frame, candidate, anchorTemplate);
+      const identityScore = scoreIdentityEdges(
+        frame,
+        candidate,
+        anchorTemplate,
+      );
       const predictionDistance = Math.hypot(
         candidate.x1 - predicted.x1,
         candidate.y1 - predicted.y1,
@@ -244,11 +335,18 @@
       );
       const collisionPenalty = overlap >= 0.55 ? 0.55 : overlap >= 0.2 ? 0.26 : 0;
       const score =
-        recentScore * 0.80 +
-        anchorScore * 0.20 -
+        recentScore * 0.68 +
+        anchorScore * 0.20 +
+        identityScore * 0.12 -
         continuityPenalty -
         collisionPenalty;
-      return { box: candidate, score, recentScore, anchorScore };
+      return {
+        box: candidate,
+        score,
+        recentScore,
+        anchorScore,
+        identityScore,
+      };
     }
 
     let best = evaluate(predicted.x1, predicted.y1);
@@ -274,14 +372,17 @@
     }
 
     const strong =
-      best.recentScore >= (options.minimumRecentScore || 0.58) &&
-      best.anchorScore >= (options.minimumAnchorScore || 0.36) &&
-      best.score >= (options.minimumCombinedScore || 0.48);
+      best.recentScore >= (options.minimumRecentScore || 0.60) &&
+      best.anchorScore >= (options.minimumAnchorScore || 0.46) &&
+      best.identityScore >= (options.minimumIdentityScore || 0.56) &&
+      best.score >= (options.minimumCombinedScore || 0.52);
 
     return {
       ...best,
       strong,
+      exitedFrame: false,
       predicted,
+      predictedVisibleFraction,
       movement: Math.hypot(
         best.box.x1 - currentBox.x1,
         best.box.y1 - currentBox.y1,
@@ -295,6 +396,8 @@
     gradientAt,
     makeTemplate,
     scoreTemplate,
+    scoreIdentityEdges,
+    visibleFraction,
     boxIoU,
     findBestMatch,
   };
