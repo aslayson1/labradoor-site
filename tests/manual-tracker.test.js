@@ -230,3 +230,38 @@ test('different text appearing near the old location cannot inherit the mask', (
     `replacement anchor correlation too high: ${JSON.stringify(match)}`,
   );
 });
+
+
+test('fast 60fps UI motion remains reachable even when a browser callback is skipped', () => {
+  const first = makeFrame(320, 260);
+  drawTextLikeRow(first, 72, 142, 0);
+  const box = { x1: 66, y1: 132, x2: 198, y2: 166 };
+  const anchor = tracker.makeTemplate(first, box, {
+    paddingRatio: 0.08,
+    cols: 19,
+    rows: 11,
+  });
+  const recent = tracker.makeTemplate(first, box, {
+    paddingRatio: 0.20,
+    cols: 17,
+    rows: 11,
+  });
+
+  const next = makeFrame(320, 260);
+  // Models roughly two skipped 60fps source frames during the fast sheet
+  // animation in the uploaded Labradoor recording.
+  drawTextLikeRow(next, 72, 54, 0);
+
+  const match = tracker.findBestMatch(next, box, recent, anchor, {
+    expectedMotion: { dx: 0, dy: -44 },
+    elapsedSeconds: 3 / 60,
+  });
+
+  assert.equal(
+    match.strong,
+    true,
+    `fast jump should remain trackable: ${JSON.stringify(match)}`,
+  );
+  assert.ok(match.searchRadiusY >= 120);
+  assert.ok(Math.abs(match.box.y1 - 44) <= 4);
+});
