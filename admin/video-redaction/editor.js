@@ -95,6 +95,7 @@
   let animationFrame = 0;
   let animationFrameKind = '';
   let lastTrackingFrame = null;
+  let trackingScale = 1;
   const previewTrackers = new Map();
   const trackingCanvas = document.createElement('canvas');
   const trackingContext = trackingCanvas.getContext('2d', { willReadFrequently: true });
@@ -481,6 +482,25 @@
     };
   }
 
+  function toTrackingBox(box) {
+    return {
+      x1: box.x1 * trackingScale,
+      y1: box.y1 * trackingScale,
+      x2: box.x2 * trackingScale,
+      y2: box.y2 * trackingScale,
+    };
+  }
+
+  function fromTrackingBox(box) {
+    const scale = Math.max(0.0001, trackingScale);
+    return {
+      x1: box.x1 / scale,
+      y1: box.y1 / scale,
+      x2: box.x2 / scale,
+      y2: box.y2 / scale,
+    };
+  }
+
   function otherTrackedBoxes(itemId, now) {
     return corrections.flatMap((other) => {
       if (other.id === itemId || !visibleAt(other, now)) return [];
@@ -493,7 +513,7 @@
 
   function makeAnchorTemplate(box) {
     return lastTrackingFrame
-      ? ManualTracker.makeTemplate(lastTrackingFrame, box, {
+      ? ManualTracker.makeTemplate(lastTrackingFrame, toTrackingBox(box), {
           paddingRatio: 0.08,
           cols: 19,
           rows: 11,
@@ -503,7 +523,7 @@
 
   function makeRecentTemplate(box) {
     return lastTrackingFrame
-      ? ManualTracker.makeTemplate(lastTrackingFrame, box, {
+      ? ManualTracker.makeTemplate(lastTrackingFrame, toTrackingBox(box), {
           paddingRatio: 0.20,
           cols: 17,
           rows: 11,
@@ -534,16 +554,25 @@
         }
       : { dx: 0, dy: 0 };
 
-    return ManualTracker.findBestMatch(
+    const match = ManualTracker.findBestMatch(
       lastTrackingFrame,
-      tracker.box,
+      toTrackingBox(tracker.box),
       tracker.recentTemplate,
       tracker.anchorTemplate,
       {
-        occupied: otherTrackedBoxes(item.id, now),
-        expectedMotion,
+        occupied: otherTrackedBoxes(item.id, now).map(toTrackingBox),
+        expectedMotion: {
+          dx: expectedMotion.dx * trackingScale,
+          dy: expectedMotion.dy * trackingScale,
+        },
       },
     );
+    return {
+      ...match,
+      box: fromTrackingBox(match.box),
+      predicted: fromTrackingBox(match.predicted),
+      movement: match.movement / Math.max(0.0001, trackingScale),
+    };
   }
 
   function resetPreviewTracker(item, now) {
@@ -732,19 +761,40 @@
   function drawFrame(frameTime = source.currentTime) {
     if (!source.videoWidth || !display.width) return;
     try {
+      const maxTrackingDimension = 1280;
+      const nextTrackingScale = Math.min(
+        1,
+        maxTrackingDimension / Math.max(display.width, display.height),
+      );
+      const trackingWidth = Math.max(
+        1,
+        Math.round(display.width * nextTrackingScale),
+      );
+      const trackingHeight = Math.max(
+        1,
+        Math.round(display.height * nextTrackingScale),
+      );
       if (
-        trackingCanvas.width !== display.width ||
-        trackingCanvas.height !== display.height
+        trackingCanvas.width !== trackingWidth ||
+        trackingCanvas.height !== trackingHeight
       ) {
-        trackingCanvas.width = display.width;
-        trackingCanvas.height = display.height;
+        trackingCanvas.width = trackingWidth;
+        trackingCanvas.height = trackingHeight;
+        previewTrackers.clear();
       }
-      trackingContext.drawImage(source, 0, 0, display.width, display.height);
+      trackingScale = trackingCanvas.width / display.width;
+      trackingContext.drawImage(
+        source,
+        0,
+        0,
+        trackingCanvas.width,
+        trackingCanvas.height,
+      );
       lastTrackingFrame = trackingContext.getImageData(
         0,
         0,
-        display.width,
-        display.height,
+        trackingCanvas.width,
+        trackingCanvas.height,
       );
       context.drawImage(source, 0, 0, display.width, display.height);
     } catch {
