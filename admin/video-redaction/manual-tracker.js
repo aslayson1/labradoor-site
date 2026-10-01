@@ -123,6 +123,8 @@
           fy,
           value,
           magnitude: gradient.magnitude,
+          gx: gradient.gx,
+          gy: gradient.gy,
         });
         fingerprintSum += value;
       }
@@ -145,10 +147,14 @@
         Math.min(2, sample.magnitude / 36);
     }
 
+    const foregroundSamples = fingerprint.filter(sample =>
+      sample.value > fingerprintMean + fingerprintDeviation * 0.35 && sample.magnitude >= 28);
+
     return {
       samples,
       identitySamples,
       fingerprint,
+      foregroundSamples,
       fingerprintMean,
       fingerprintDeviation,
       mean,
@@ -295,6 +301,25 @@
     }
     const candidateVariance = Math.max(0, squareSum - sum * sum / samples.length);
     return covariance / Math.max(1, Math.sqrt(templateVariance * candidateVariance));
+  }
+
+  function scoreForegroundEdges(frame, box, template) {
+    const samples = template?.foregroundSamples || [];
+    if (samples.length < 16) return 0;
+    let agreement = 0;
+    for (const sample of samples) {
+      const x = box.x1 + sample.fx * Math.max(1, box.x2 - box.x1 - 1);
+      const y = box.y1 + sample.fy * Math.max(1, box.y2 - box.y1 - 1);
+      if (x < 1 || y < 1 || x >= frame.width - 1 || y >= frame.height - 1) continue;
+      const current = gradientAt(frame, x, y);
+      if (current.magnitude < Math.max(9, sample.magnitude * 0.30)) continue;
+      const cosine = (sample.gx * current.gx + sample.gy * current.gy) /
+        Math.max(1, sample.magnitude * current.magnitude);
+      const ratio = Math.min(sample.magnitude, current.magnitude) /
+        Math.max(1, Math.max(sample.magnitude, current.magnitude));
+      agreement += Math.max(0, cosine) * 0.85 + ratio * 0.15;
+    }
+    return agreement / samples.length;
   }
 
   function scoreIdentityEdges(frame, box, template) {
@@ -522,16 +547,25 @@
         x2: x + width,
         y2: y + height,
       };
-      const recentCorrelation = scoreDenseCorrelation(
+      const denseRecentCorrelation = scoreDenseCorrelation(
         frame,
         candidate,
         recentTemplate,
       );
-      const anchorCorrelation = scoreDenseCorrelation(
+      const denseAnchorCorrelation = scoreDenseCorrelation(
         frame,
         candidate,
         anchorTemplate,
       );
+
+      // Character edges retain identity when a photo loads behind white text.
+      // Keep dense texture as default, with a strict foreground-only fallback.
+      const needsForeground = denseAnchorCorrelation >= 0.25 && denseAnchorCorrelation < (options.minimumAnchorCorrelation || 0.82);
+      const foregroundAnchor = needsForeground ? scoreForegroundEdges(frame, candidate, anchorTemplate) : 0;
+      const foregroundRecent = needsForeground ? scoreForegroundEdges(frame, candidate, recentTemplate) : 0;
+      const foregroundConfirmed = foregroundAnchor >= 0.85 && foregroundRecent >= 0.80 && denseAnchorCorrelation >= 0.25;
+      const anchorCorrelation = foregroundConfirmed ? Math.max(denseAnchorCorrelation, foregroundAnchor) : denseAnchorCorrelation;
+      const recentCorrelation = foregroundConfirmed ? Math.max(denseRecentCorrelation, foregroundRecent) : denseRecentCorrelation;
 
       const predictionDistance = Math.hypot(
         candidate.x1 - predicted.x1,
@@ -563,9 +597,15 @@
         anchorScore: anchorCorrelation,
         recentCorrelation,
         anchorCorrelation,
-        denseAnchorCorrelation: anchorCorrelation,
+        denseAnchorCorrelation,
       };
     }
+
+    // Preserve the subpixel sampling phase of a hand-drawn box. Snapping
+    // candidates to integer origins can change which thin glyph pixels are
+    // sampled even when the text itself has not changed.
+    const phaseX = currentBox.x1 - Math.floor(currentBox.x1);
+    const phaseY = currentBox.y1 - Math.floor(currentBox.y1);
 
     function confirmed(candidate) {
       return candidate.recentCorrelation >= (options.minimumRecentCorrelation || 0.70) &&
@@ -584,10 +624,12 @@
     // to the motion prediction before paying for a full search. This also
     // prevents skipped frames caused by exhaustive matching on every tick.
     let localBest = evaluate(predicted.x1, predicted.y1);
+    const stationary = evaluate(currentBox.x1, currentBox.y1);
+    if (stationary.anchorCorrelation >= localBest.anchorCorrelation && stationary.score >= localBest.score - 0.01) localBest = stationary;
     if (confirmed(localBest) && localBest.score >= 0.88) return result(localBest);
     for (let y = Math.max(minY, Math.floor(predicted.y1 - 4)); y <= Math.min(maxY, Math.ceil(predicted.y1 + 4)); y++) {
       for (let x = Math.max(minX, Math.floor(predicted.x1 - 3)); x <= Math.min(maxX, Math.ceil(predicted.x1 + 3)); x++) {
-        const candidate = evaluate(x, y);
+        const candidate = evaluate(x + phaseX, y + phaseY);
         if (candidate.score > localBest.score) localBest = candidate;
       }
     }
@@ -602,7 +644,7 @@
     const coarseStep = Math.max(3, Number(options.coarseStep) || (fastSearch ? 5 : 3));
     for (let y = minY; y <= maxY; y += coarseStep) {
       for (let x = minX; x <= maxX; x += coarseStep) {
-        const candidate = evaluate(x, y);
+        const candidate = evaluate(x + phaseX, y + phaseY);
         if (candidate.score > best.score) best = candidate;
         seeds.push(candidate);
       }
@@ -621,7 +663,7 @@
           const key = y * frame.width + x;
           if (visited.has(key)) continue;
           visited.add(key);
-          const candidate = evaluate(x, y);
+          const candidate = evaluate(x + phaseX, y + phaseY);
           if (candidate.score > best.score) best = candidate;
         }
       }
@@ -639,6 +681,7 @@
     scoreCorrelation,
     scoreDenseCorrelation,
     scoreIdentityEdges,
+    scoreForegroundEdges,
     scoreFingerprint,
     visibleFraction,
     boxIoU,

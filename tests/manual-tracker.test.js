@@ -303,3 +303,17 @@ test('fractional hand-drawn boxes compare the exact pixels captured by the templ
   assert.equal(match.strong, true);
   assert.deepEqual(match.box, box, 'a stationary fractional mask must not snap to another position');
 });
+
+test('fast search retains fractional glyph sampling after a skipped scrolling frame', () => {
+  const first = makeFrame();
+  drawTextLikeRow(first, 55, 88);
+  const box = { x1: 49.333, y1: 78.667, x2: 180.667, y2: 111.333 };
+  const anchor = tracker.makeTemplate(first, box);
+  const next = makeFrame();
+  drawTextLikeRow(next, 79, 18);
+  drawTextLikeRow(next, 57, 123, 1);
+  const match = tracker.findBestMatch(next, box, anchor, anchor, {elapsedSeconds: 0.08});
+  assert.equal(match.strong, true);
+  assert.ok(Math.abs(match.box.x1 - (box.x1 + 24)) < 0.01);
+  assert.ok(Math.abs(match.box.y1 - (box.y1 - 70)) < 0.01);
+});
