@@ -91,6 +91,9 @@
   const previewTrackers = new Map();
   const previewScratch = document.createElement('canvas');
   const previewScratchContext = previewScratch.getContext('2d');
+  const previewStrongMatch = 0.38;
+  const previewWeakMatch = 0.24;
+  const previewLostFrameLimit = 3;
 
   function formatTime(value) {
     if (!Number.isFinite(value)) return '00:00.00';
@@ -490,6 +493,7 @@
 
   function candidateCorrelation(searchImage, searchOrigin, box, template) {
     let candidateSum = 0;
+    let absoluteDelta = 0;
     const values = [];
     for (const sample of template.samples) {
       const x = box.x1 + sample.fx * (box.x2 - box.x1) - searchOrigin.x;
@@ -497,6 +501,7 @@
       const value = grayAt(searchImage, searchImage.width, x, y);
       values.push(value);
       candidateSum += value;
+      absoluteDelta += Math.abs(sample.value - value);
     }
     const candidateMean = candidateSum / values.length;
     let candidateVariance = 0;
@@ -510,35 +515,34 @@
     const candidateDeviation = Math.sqrt(
       Math.max(candidateVariance / values.length, 1),
     );
-    return (
+    const correlation =
       covariance /
       values.length /
-      Math.max(1, template.deviation * candidateDeviation)
+      Math.max(1, template.deviation * candidateDeviation);
+    const appearanceScore = Math.max(
+      0,
+      1 - absoluteDelta / values.length / 90,
     );
+    return correlation * 0.78 + appearanceScore * 0.22;
   }
 
-  function searchPreviewBox(item, tracker, wideSearch = false) {
+  function searchPreviewBox(item, tracker) {
     const current = tracker.box;
     const width = current.x2 - current.x1;
     const height = current.y2 - current.y1;
-    const xRadius = wideSearch
-      ? Math.min(display.width, Math.max(36, width * 2))
-      : Math.max(18, Math.min(72, width * 0.9));
-    const yRadius = wideSearch
-      ? display.height
-      : Math.max(42, Math.min(180, height * 5));
+    const xRadius = Math.max(18, Math.min(72, width * 0.9));
+    const yRadius = Math.max(42, Math.min(180, height * 5));
 
     const searchX1 = Math.max(0, Math.floor(current.x1 - xRadius));
-    const searchY1 = wideSearch
-      ? 0
-      : Math.max(0, Math.floor(current.y1 - yRadius));
+    const searchY1 = Math.max(0, Math.floor(current.y1 - yRadius));
     const searchX2 = Math.min(
       display.width,
       Math.ceil(current.x2 + xRadius),
     );
-    const searchY2 = wideSearch
-      ? display.height
-      : Math.min(display.height, Math.ceil(current.y2 + yRadius));
+    const searchY2 = Math.min(
+      display.height,
+      Math.ceil(current.y2 + yRadius),
+    );
 
     let searchImage;
     try {
@@ -549,10 +553,10 @@
         Math.max(1, searchY2 - searchY1),
       );
     } catch {
-      return current;
+      return { box: current, score: -Infinity };
     }
 
-    const coarseStep = wideSearch ? 6 : 4;
+    const coarseStep = 4;
     let best = { box: current, score: -Infinity };
     const minX = searchX1;
     const maxX = Math.max(minX, searchX2 - width);
@@ -590,9 +594,10 @@
       }
     }
 
-    if (best.score < 0.18) return current;
-    tracker.confidence = best.score;
-    return clampPreviewBox(best.box);
+    return {
+      box: clampPreviewBox(best.box),
+      score: best.score,
+    };
   }
 
   function previewBoxFor(item, now) {
@@ -611,6 +616,8 @@
           box: { ...item.box },
           lastTime: now,
           confidence: 1,
+          mismatchFrames: 0,
+          lost: false,
         };
         previewTrackers.set(item.id, tracker);
       }
@@ -624,15 +631,46 @@
     if (atAnchor) {
       tracker.box = { ...item.box };
       tracker.lastTime = now;
+      tracker.confidence = 1;
+      tracker.mismatchFrames = 0;
+      tracker.lost = false;
       return tracker.box;
     }
 
+    if (tracker.lost) return null;
+
     const delta = now - tracker.lastTime;
     const jumped = delta < -0.03 || delta > 0.35;
-    if (delta > 0.004 || jumped) {
-      tracker.box = searchPreviewBox(item, tracker, jumped);
-      tracker.lastTime = now;
+    if (jumped) {
+      // Never scan the whole frame after a seek or playback jump. That was
+      // the main path that allowed a finished mask to latch onto unrelated text.
+      tracker.lost = true;
+      return null;
     }
+
+    if (delta > 0.004) {
+      const match = searchPreviewBox(item, tracker);
+      tracker.confidence = match.score;
+      tracker.lastTime = now;
+
+      if (match.score >= previewStrongMatch) {
+        tracker.box = match.box;
+        tracker.mismatchFrames = 0;
+      } else {
+        if (match.score >= previewWeakMatch) {
+          // A weak-but-plausible frame can happen during scrolling/motion blur.
+          // Follow it briefly, but require the original visual identity to
+          // recover quickly or terminate this occurrence.
+          tracker.box = match.box;
+        }
+        tracker.mismatchFrames += 1;
+        if (tracker.mismatchFrames >= previewLostFrameLimit) {
+          tracker.lost = true;
+          return null;
+        }
+      }
+    }
+
     return tracker.box;
   }
 
