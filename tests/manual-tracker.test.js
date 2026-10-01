@@ -169,7 +169,7 @@ test('a vanished target is not confidently reacquired from unrelated content', (
 });
 
 
-test('a target moving out of the frame ends instead of pinning to the edge', () => {
+test('a target crossing the frame edge is carried out without reacquiring', () => {
   const frame = makeFrame(240, 220);
   drawTextLikeRow(frame, 58, 182, 0);
   const box = { x1: 52, y1: 172, x2: 184, y2: 206 };
@@ -177,14 +177,23 @@ test('a target moving out of the frame ends instead of pinning to the edge', () 
   const recent = tracker.makeTemplate(frame, box, { paddingRatio: 0.18 });
 
   const next = makeFrame(240, 220);
-  // The selected row has moved below the visible frame.
-  const match = tracker.findBestMatch(next, box, recent, anchor, {
-    expectedMotion: { dx: 0, dy: 40 },
+  const partial = tracker.findBestMatch(next, box, recent, anchor, {
+    expectedMotion: { dx: 0, dy: 20 },
   });
 
-  assert.equal(match.exitedFrame, true);
-  assert.equal(match.strong, false);
-  assert.ok(match.predicted.y2 > next.height);
+  assert.equal(partial.exitingFrame, true);
+  assert.equal(partial.exitedFrame, false);
+  assert.equal(partial.strong, true);
+  assert.ok(partial.predicted.y2 > next.height);
+
+  const gone = tracker.findBestMatch(next, box, recent, anchor, {
+    expectedMotion: { dx: 0, dy: 55 },
+  });
+
+  assert.equal(gone.exitingFrame, false);
+  assert.equal(gone.exitedFrame, true);
+  assert.equal(gone.strong, false);
+  assert.ok(gone.predicted.y1 > next.height);
 });
 
 test('different text appearing near the old location cannot inherit the mask', () => {
@@ -215,5 +224,9 @@ test('different text appearing near the old location cannot inherit the mask', (
     match.strong,
     false,
     `replacement content must not inherit target: ${JSON.stringify(match)}`,
+  );
+  assert.ok(
+    match.anchorCorrelation < 0.74,
+    `replacement anchor correlation too high: ${JSON.stringify(match)}`,
   );
 });

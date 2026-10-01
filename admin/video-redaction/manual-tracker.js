@@ -224,6 +224,53 @@
     return correlationScore * 0.62 + edgeScore * 0.23 + appearanceScore * 0.15;
   }
 
+  function scoreCorrelation(frame, box, template) {
+    const samples = template?.samples || [];
+    if (!samples.length) return -1;
+
+    let candidateWeightedSum = 0;
+    let totalWeight = 0;
+    const values = [];
+
+    for (const sample of samples) {
+      const x = box.x1 + sample.fx * (box.x2 - box.x1);
+      const y = box.y1 + sample.fy * (box.y2 - box.y1);
+      if (x < 0 || y < 0 || x >= frame.width || y >= frame.height) {
+        return -1;
+      }
+      const value = grayAt(frame, x, y);
+      values.push(value);
+      candidateWeightedSum += value * sample.weight;
+      totalWeight += sample.weight;
+    }
+
+    const candidateMean =
+      candidateWeightedSum / Math.max(1, totalWeight);
+    let covariance = 0;
+    let candidateVariance = 0;
+    for (let index = 0; index < samples.length; index += 1) {
+      const sample = samples[index];
+      const weight = sample.weight;
+      const a = sample.value - template.mean;
+      const b = values[index] - candidateMean;
+      covariance += weight * a * b;
+      candidateVariance += weight * b * b;
+    }
+
+    return covariance /
+      Math.max(
+        1,
+        totalWeight *
+          template.deviation *
+          Math.sqrt(
+            Math.max(
+              1,
+              candidateVariance / Math.max(1, totalWeight),
+            ),
+          ),
+      );
+  }
+
   function scoreIdentityEdges(frame, box, template) {
     const samples = template?.identitySamples || [];
     if (!samples.length) return 0;
@@ -369,18 +416,22 @@
       motionMagnitude >= 0.8 &&
       predictedVisibleFraction + 0.04 < currentVisibleFraction;
 
-    // Never pin a tracked box to the screen edge. If the motion model says
-    // the selected text is leaving the visible frame, allow the occurrence
-    // to end instead of forcing a replacement match somewhere on-screen.
-    if (movingOutward && predictedVisibleFraction < 0.58) {
+    // Once a confirmed target begins crossing a frame edge, stop searching
+    // for replacement content. Carry the box along the established motion
+    // vector while any part is still visible, then end the occurrence only
+    // after it has completely left the frame.
+    if (movingOutward && predictedVisibleFraction < 0.98) {
+      const exitedFrame = predictedVisibleFraction <= 0.01;
       return {
         box: predicted,
-        score: 0,
-        recentScore: 0,
-        anchorScore: 0,
-        identityScore: 0,
-        strong: false,
-        exitedFrame: true,
+        score: exitedFrame ? 0 : 1,
+        recentScore: exitedFrame ? 0 : 1,
+        anchorScore: exitedFrame ? 0 : 1,
+        anchorCorrelation: exitedFrame ? -1 : 1,
+        identityScore: exitedFrame ? 0 : 1,
+        strong: !exitedFrame,
+        exitingFrame: !exitedFrame,
+        exitedFrame,
         predicted,
         predictedVisibleFraction,
         movement: motionMagnitude,
@@ -411,6 +462,11 @@
       const candidate = { x1: x, y1: y, x2: x + width, y2: y + height };
       const recentScore = scoreTemplate(frame, candidate, recentTemplate);
       const anchorScore = scoreTemplate(frame, candidate, anchorTemplate);
+      const anchorCorrelation = scoreCorrelation(
+        frame,
+        candidate,
+        anchorTemplate,
+      );
       const identityScore = scoreIdentityEdges(
         frame,
         candidate,
@@ -436,8 +492,8 @@
       );
       const collisionPenalty = overlap >= 0.55 ? 0.55 : overlap >= 0.2 ? 0.26 : 0;
       const score =
-        recentScore * 0.68 +
-        anchorScore * 0.22 +
+        recentScore * 0.42 +
+        Math.max(0, anchorCorrelation) * 0.48 +
         identityScore * 0.10 -
         continuityPenalty -
         collisionPenalty;
@@ -446,6 +502,7 @@
         score,
         recentScore,
         anchorScore,
+        anchorCorrelation,
         identityScore,
         fingerprintScore,
       };
@@ -474,14 +531,15 @@
     }
 
     const strong =
-      best.recentScore >= (options.minimumRecentScore || 0.60) &&
-      best.anchorScore >= (options.minimumAnchorScore || 0.88) &&
-      best.identityScore >= (options.minimumIdentityScore || 0.62) &&
-      best.score >= (options.minimumCombinedScore || 0.58);
+      best.recentScore >= (options.minimumRecentScore || 0.56) &&
+      best.anchorCorrelation >=
+        (options.minimumAnchorCorrelation || 0.74) &&
+      best.score >= (options.minimumCombinedScore || 0.55);
 
     return {
       ...best,
       strong,
+      exitingFrame: false,
       exitedFrame: false,
       predicted,
       predictedVisibleFraction,
@@ -498,6 +556,7 @@
     gradientAt,
     makeTemplate,
     scoreTemplate,
+    scoreCorrelation,
     scoreIdentityEdges,
     scoreFingerprint,
     visibleFraction,

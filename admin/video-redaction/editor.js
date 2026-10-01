@@ -649,6 +649,18 @@
         return null;
       }
 
+      if (match.exitingFrame) {
+        const dx = match.box.x1 - previousBox.x1;
+        const dy = match.box.y1 - previousBox.y1;
+        tracker.box = { ...match.box };
+        tracker.motionX = dx;
+        tracker.motionY = dy;
+        tracker.hasMotion = true;
+        tracker.lastDelta = delta;
+        tracker.mismatchFrames = 0;
+        return tracker.box;
+      }
+
       if (match.strong) {
         const dx = match.box.x1 - previousBox.x1;
         const dy = match.box.y1 - previousBox.y1;
