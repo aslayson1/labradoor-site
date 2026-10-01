@@ -271,6 +271,40 @@
       );
   }
 
+  function scoreDenseCorrelation(frame, box, template) {
+    const samples = template?.fingerprint || [];
+    if (!samples.length) return -1;
+
+    const values = new Array(samples.length);
+    let candidateSum = 0;
+    for (let index = 0; index < samples.length; index += 1) {
+      const sample = samples[index];
+      const x = box.x1 + sample.fx * (box.x2 - box.x1);
+      const y = box.y1 + sample.fy * (box.y2 - box.y1);
+      if (x < 0 || y < 0 || x >= frame.width || y >= frame.height) {
+        return -1;
+      }
+      const value = grayAt(frame, x, y);
+      values[index] = value;
+      candidateSum += value;
+    }
+
+    const candidateMean = candidateSum / values.length;
+    let covariance = 0;
+    let templateVariance = 0;
+    let candidateVariance = 0;
+    for (let index = 0; index < samples.length; index += 1) {
+      const a = samples[index].value - template.fingerprintMean;
+      const b = values[index] - candidateMean;
+      covariance += a * b;
+      templateVariance += a * a;
+      candidateVariance += b * b;
+    }
+
+    return covariance /
+      Math.max(1, Math.sqrt(templateVariance * candidateVariance));
+  }
+
   function scoreIdentityEdges(frame, box, template) {
     const samples = template?.identitySamples || [];
     if (!samples.length) return 0;
@@ -594,16 +628,50 @@
       }
     }
 
+    // The sparse matcher is useful for motion search, but the final identity
+    // decision uses a dense normalized correlation of the exact hand-drawn
+    // pixels. This is substantially more stable on real text than the older
+    // edge/fingerprint heuristics.
+    let denseBest = {
+      box: best.box,
+      correlation: scoreDenseCorrelation(frame, best.box, anchorTemplate),
+    };
+    const identityCenters = [best.box, predicted];
+    for (const center of identityCenters) {
+      for (let dy = -4; dy <= 4; dy += 2) {
+        for (let dx = -4; dx <= 4; dx += 2) {
+          const x = Math.max(minX, Math.min(maxX, center.x1 + dx));
+          const y = Math.max(minY, Math.min(maxY, center.y1 + dy));
+          const candidate = { x1: x, y1: y, x2: x + width, y2: y + height };
+          const correlation = scoreDenseCorrelation(
+            frame,
+            candidate,
+            anchorTemplate,
+          );
+          if (correlation > denseBest.correlation) {
+            denseBest = { box: candidate, correlation };
+          }
+        }
+      }
+    }
+    if (
+      denseBest.box.x1 !== best.box.x1 ||
+      denseBest.box.y1 !== best.box.y1
+    ) {
+      best = evaluate(denseBest.box.x1, denseBest.box.y1);
+    }
+    best.denseAnchorCorrelation = denseBest.correlation;
+
+    const minimumDenseIdentity =
+      options.minimumDenseIdentity || 0.70;
     const strong = best.fastSearch
       ? best.recentCorrelation >=
-          (options.minimumRecentCorrelation || 0.62) &&
-        best.anchorCorrelation >=
-          (options.minimumAnchorCorrelation || 0.72) &&
-        best.score >= (options.minimumCombinedScore || 0.62)
-      : best.recentScore >= (options.minimumRecentScore || 0.56) &&
-        best.anchorCorrelation >=
-          (options.minimumAnchorCorrelation || 0.74) &&
-        best.score >= (options.minimumCombinedScore || 0.55);
+          (options.minimumRecentCorrelation || 0.55) &&
+        best.denseAnchorCorrelation >= minimumDenseIdentity &&
+        best.score >= (options.minimumCombinedScore || 0.55)
+      : best.recentScore >= (options.minimumRecentScore || 0.50) &&
+        best.denseAnchorCorrelation >= minimumDenseIdentity &&
+        best.score >= (options.minimumCombinedScore || 0.50);
 
     return {
       ...best,
@@ -628,6 +696,7 @@
     makeTemplate,
     scoreTemplate,
     scoreCorrelation,
+    scoreDenseCorrelation,
     scoreIdentityEdges,
     scoreFingerprint,
     visibleFraction,
