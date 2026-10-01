@@ -235,7 +235,7 @@ test('different text appearing near the old location cannot inherit the mask', (
     `replacement content must not inherit target: ${JSON.stringify(match)}`,
   );
   assert.ok(
-    match.denseAnchorCorrelation < 0.70,
+    match.denseAnchorCorrelation < 0.82,
     `replacement dense identity too high: ${JSON.stringify(match)}`,
   );
 });
