@@ -235,8 +235,8 @@ test('different text appearing near the old location cannot inherit the mask', (
     `replacement content must not inherit target: ${JSON.stringify(match)}`,
   );
   assert.ok(
-    match.anchorCorrelation < 0.74,
-    `replacement anchor correlation too high: ${JSON.stringify(match)}`,
+    match.denseAnchorCorrelation < 0.70,
+    `replacement dense identity too high: ${JSON.stringify(match)}`,
   );
 });
 
@@ -276,4 +276,18 @@ test('fast 60fps UI motion remains reachable even when a browser callback is ski
   );
   assert.ok(match.searchRadiusY >= 120);
   assert.ok(Math.abs(match.box.y1 - 44) <= 4);
+});
+
+
+test('dense selected-pixel correlation remains high on the exact target', () => {
+  const first = makeFrame(280, 220);
+  drawTextLikeRow(first, 64, 92, 0);
+  const box = { x1: 58, y1: 82, x2: 190, y2: 116 };
+  const anchor = tracker.makeTemplate(first, box, { paddingRatio: 0.08 });
+
+  const next = makeFrame(280, 220);
+  drawTextLikeRow(next, 64, 86, 0);
+  const moved = { x1: 58, y1: 76, x2: 190, y2: 110 };
+
+  assert.ok(tracker.scoreDenseCorrelation(next, moved, anchor) > 0.90);
 });
