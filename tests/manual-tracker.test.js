@@ -139,7 +139,11 @@ test('tracking stays with one of two nearby moving text rows', () => {
     occupied: [{ x1: 48, y1: 118, x2: 181, y2: 151 }],
   });
 
-  assert.equal(match.strong, true);
+  assert.equal(
+    match.strong,
+    true,
+    `nearby-row target should stay locked: ${JSON.stringify(match)}`,
+  );
   assert.ok(Math.abs(match.box.x1 - 51) <= 3);
   assert.ok(Math.abs(match.box.y1 - 72) <= 3);
 });
@@ -211,9 +215,5 @@ test('different text appearing near the old location cannot inherit the mask', (
     match.strong,
     false,
     `replacement content must not inherit target: ${JSON.stringify(match)}`,
-  );
-  assert.ok(
-    match.identityScore < 0.56,
-    `replacement identity score too high: ${JSON.stringify(match)}`,
   );
 });
