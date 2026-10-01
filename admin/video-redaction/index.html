@@ -97,23 +97,21 @@
             <div class="sub">Manual masks use a fixed 6 px safety edge so you only need to draw a tight box around the private text.</div>
           </div>
 
-          <div class="section" id="automaticSettings" hidden>
-            <div class="label"><span>Automatic detection settings</span></div>
+          <div hidden aria-hidden="true">
             <div class="checks">
-              <label class="check"><input type="checkbox" data-kind="address" checked>Addresses</label>
-              <label class="check"><input type="checkbox" data-kind="owner_name" checked>Owner names</label>
-              <label class="check"><input type="checkbox" data-kind="phone" checked>Phone numbers</label>
-              <label class="check"><input type="checkbox" data-kind="email" checked>Email addresses</label>
+              <label><input type="checkbox" data-kind="address" checked>Addresses</label>
+              <label><input type="checkbox" data-kind="owner_name" checked>Owner names</label>
+              <label><input type="checkbox" data-kind="phone" checked>Phone numbers</label>
+              <label><input type="checkbox" data-kind="email" checked>Email addresses</label>
             </div>
-            <div class="label" style="margin-top:14px"><span>Safety padding</span><span id="paddingValue">6 px</span></div>
+            <span id="paddingValue">6 px</span>
             <input id="padding" type="range" min="2" max="30" value="6">
-            <div class="label" style="margin-top:14px"><span>Detection sensitivity</span><span id="confidenceValue">60% · High recall</span></div>
+            <span id="confidenceValue">60% · High recall</span>
             <input id="confidence" type="range" min="25" max="85" value="60">
-            <div class="sub">These controls apply only to automatic OCR detection. They do not change manual mask tracking.</div>
           </div>
 
           <div class="section actions">
-            <button class="btn secondary" id="process" type="button">Automatic detection settings</button>
+            <button class="btn secondary" id="process" type="button">Run automatic detection instead</button>
             <button class="btn secondary" id="replace" type="button">Choose another video</button>
             <div class="progress" id="progress">
               <div class="bar"><span id="progressBar"></span></div>
