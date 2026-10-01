@@ -94,8 +94,8 @@
   const trackingContext = trackingCanvas.getContext('2d', { willReadFrequently: true });
   const previewScratch = document.createElement('canvas');
   const previewScratchContext = previewScratch.getContext('2d');
-  const previewStrongMatch = 0.38;
-  const previewWeakMatch = 0.24;
+  const previewStrongMatch = 0.50;
+  const previewWeakMatch = 0.34;
   const previewLostFrameLimit = 3;
 
   function formatTime(value) {
@@ -454,121 +454,223 @@
     );
   }
 
+  function previewGradient(image, width, x, y) {
+    const gx =
+      grayAt(image, width, x + 1.5, y) -
+      grayAt(image, width, x - 1.5, y);
+    const gy =
+      grayAt(image, width, x, y + 1.5) -
+      grayAt(image, width, x, y - 1.5);
+    return {
+      gx,
+      gy,
+      magnitude: Math.hypot(gx, gy),
+    };
+  }
+
   function makePreviewTemplate(box) {
-    const boxWidth = Math.max(4, box.x2 - box.x1);
-    const boxHeight = Math.max(4, box.y2 - box.y1);
-    const contextPad = Math.max(
-      4,
-      Math.min(14, Math.round(boxHeight * 0.55)),
-    );
-    const captureX1 = Math.max(0, Math.floor(box.x1 - contextPad));
-    const captureY1 = Math.max(0, Math.floor(box.y1 - contextPad));
-    const captureX2 = Math.min(
-      display.width,
-      Math.ceil(box.x2 + contextPad),
-    );
-    const captureY2 = Math.min(
-      display.height,
-      Math.ceil(box.y2 + contextPad),
-    );
-    const width = Math.max(4, captureX2 - captureX1);
-    const height = Math.max(4, captureY2 - captureY1);
+    const x1 = Math.max(0, Math.floor(box.x1));
+    const y1 = Math.max(0, Math.floor(box.y1));
+    const width = Math.max(4, Math.min(display.width - x1, Math.ceil(box.x2 - box.x1)));
+    const height = Math.max(4, Math.min(display.height - y1, Math.ceil(box.y2 - box.y1)));
     if (width < 4 || height < 4) return null;
 
     let image;
     try {
-      image = trackingContext.getImageData(
-        captureX1,
-        captureY1,
-        width,
-        height,
-      );
+      image = trackingContext.getImageData(x1, y1, width, height);
     } catch {
       return null;
     }
 
-    const cols = Math.max(13, Math.min(23, Math.round(width / 5)));
-    const rows = Math.max(9, Math.min(15, Math.round(height / 4)));
-    const samples = [];
-    let sum = 0;
+    // The selected text itself is the primary identity. Keep only the
+    // strongest letter/number edges so flat card backgrounds and nearby
+    // buttons cannot pull the mask away from the user's exact selection.
+    const cols = Math.max(15, Math.min(31, Math.round(width / 3.5)));
+    const rows = Math.max(9, Math.min(19, Math.round(height / 2.5)));
+    const candidates = [];
     for (let row = 0; row < rows; row += 1) {
       for (let col = 0; col < cols; col += 1) {
-        const px = ((col + 0.5) / cols) * (width - 1);
-        const py = ((row + 0.5) / rows) * (height - 1);
-        const canvasX = captureX1 + px;
-        const canvasY = captureY1 + py;
-        const fx = (canvasX - box.x1) / boxWidth;
-        const fy = (canvasY - box.y1) / boxHeight;
+        const fx = (col + 0.5) / cols;
+        const fy = (row + 0.5) / rows;
+        const px = fx * (width - 1);
+        const py = fy * (height - 1);
         const value = grayAt(image, width, px, py);
-        const gx =
-          grayAt(image, width, px + 1.5, py) -
-          grayAt(image, width, px - 1.5, py);
-        const gy =
-          grayAt(image, width, px, py + 1.5) -
-          grayAt(image, width, px, py - 1.5);
-        samples.push({ fx, fy, value, gx, gy });
-        sum += value;
+        const gradient = previewGradient(image, width, px, py);
+        candidates.push({
+          fx,
+          fy,
+          value,
+          gx: gradient.gx,
+          gy: gradient.gy,
+          magnitude: gradient.magnitude,
+        });
       }
     }
-    const mean = sum / samples.length;
+
+    candidates.sort((a, b) => b.magnitude - a.magnitude);
+    const sampleCount = Math.max(
+      48,
+      Math.min(160, Math.round(candidates.length * 0.42)),
+    );
+    const samples = candidates.slice(0, sampleCount);
+    const mean =
+      samples.reduce((total, sample) => total + sample.value, 0) /
+      samples.length;
     const variance =
       samples.reduce((total, sample) => total + (sample.value - mean) ** 2, 0) /
       samples.length;
+
+    // A few surrounding pixels are retained only as a tie-breaker. They can
+    // never outweigh the selected text edges.
+    const contextPad = Math.max(3, Math.min(8, Math.round(height * 0.3)));
+    const contextSamples = [];
+    const captureX1 = Math.max(0, Math.floor(box.x1 - contextPad));
+    const captureY1 = Math.max(0, Math.floor(box.y1 - contextPad));
+    const captureX2 = Math.min(display.width, Math.ceil(box.x2 + contextPad));
+    const captureY2 = Math.min(display.height, Math.ceil(box.y2 + contextPad));
+    try {
+      const contextImage = trackingContext.getImageData(
+        captureX1,
+        captureY1,
+        Math.max(1, captureX2 - captureX1),
+        Math.max(1, captureY2 - captureY1),
+      );
+      const contextCols = 9;
+      const contextRows = 7;
+      for (let row = 0; row < contextRows; row += 1) {
+        for (let col = 0; col < contextCols; col += 1) {
+          const canvasX =
+            captureX1 +
+            ((col + 0.5) / contextCols) * (contextImage.width - 1);
+          const canvasY =
+            captureY1 +
+            ((row + 0.5) / contextRows) * (contextImage.height - 1);
+          const inside =
+            canvasX >= box.x1 &&
+            canvasX <= box.x2 &&
+            canvasY >= box.y1 &&
+            canvasY <= box.y2;
+          if (inside) continue;
+          const px = canvasX - captureX1;
+          const py = canvasY - captureY1;
+          const gradient = previewGradient(
+            contextImage,
+            contextImage.width,
+            px,
+            py,
+          );
+          contextSamples.push({
+            fx: (canvasX - box.x1) / width,
+            fy: (canvasY - box.y1) / height,
+            value: grayAt(contextImage, contextImage.width, px, py),
+            gx: gradient.gx,
+            gy: gradient.gy,
+            magnitude: gradient.magnitude,
+          });
+        }
+      }
+    } catch {
+      // The core selected-text template is sufficient on its own.
+    }
+
     return {
       samples,
+      contextSamples,
       mean,
       deviation: Math.sqrt(Math.max(variance, 1)),
-      width: boxWidth,
-      height: boxHeight,
-      contextPad,
+      width: box.x2 - box.x1,
+      height: box.y2 - box.y1,
     };
   }
 
-  function candidateCorrelation(searchImage, searchOrigin, box, template) {
-    let candidateSum = 0;
-    let absoluteDelta = 0;
-    let edgeDelta = 0;
+  function previewSampleScore(searchImage, searchOrigin, box, samples) {
+    if (!samples.length) return 0;
+    let appearanceTotal = 0;
+    let orientationTotal = 0;
+    let magnitudeTotal = 0;
+    let weightedTotal = 0;
+    let weightedCandidateSum = 0;
+    let weightedTemplateSum = 0;
     const values = [];
-    for (const sample of template.samples) {
+
+    for (const sample of samples) {
       const x = box.x1 + sample.fx * (box.x2 - box.x1) - searchOrigin.x;
       const y = box.y1 + sample.fy * (box.y2 - box.y1) - searchOrigin.y;
       const value = grayAt(searchImage, searchImage.width, x, y);
-      const gx =
-        grayAt(searchImage, searchImage.width, x + 1.5, y) -
-        grayAt(searchImage, searchImage.width, x - 1.5, y);
-      const gy =
-        grayAt(searchImage, searchImage.width, x, y + 1.5) -
-        grayAt(searchImage, searchImage.width, x, y - 1.5);
-      values.push(value);
-      candidateSum += value;
-      absoluteDelta += Math.abs(sample.value - value);
-      edgeDelta += Math.abs(sample.gx - gx) + Math.abs(sample.gy - gy);
+      const gradient = previewGradient(searchImage, searchImage.width, x, y);
+      const weight = Math.max(8, sample.magnitude);
+      const orientationDenominator = Math.max(
+        1,
+        sample.magnitude * gradient.magnitude,
+      );
+      const orientation =
+        (sample.gx * gradient.gx + sample.gy * gradient.gy) /
+        orientationDenominator;
+      const orientationScore = Math.max(0, (orientation + 1) / 2);
+      const magnitudeScore = Math.max(
+        0,
+        1 -
+          Math.abs(sample.magnitude - gradient.magnitude) /
+            Math.max(24, sample.magnitude * 1.6),
+      );
+      const appearanceScore = Math.max(
+        0,
+        1 - Math.abs(sample.value - value) / 95,
+      );
+      appearanceTotal += appearanceScore * weight;
+      orientationTotal += orientationScore * weight;
+      magnitudeTotal += magnitudeScore * weight;
+      weightedCandidateSum += value * weight;
+      weightedTemplateSum += sample.value * weight;
+      weightedTotal += weight;
+      values.push({ value, weight });
     }
-    const candidateMean = candidateSum / values.length;
-    let candidateVariance = 0;
+
+    const candidateMean = weightedCandidateSum / Math.max(1, weightedTotal);
+    const templateMean = weightedTemplateSum / Math.max(1, weightedTotal);
     let covariance = 0;
-    for (let index = 0; index < values.length; index += 1) {
-      const a = template.samples[index].value - template.mean;
-      const b = values[index] - candidateMean;
-      candidateVariance += b * b;
-      covariance += a * b;
+    let candidateVariance = 0;
+    let templateVariance = 0;
+    for (let index = 0; index < samples.length; index += 1) {
+      const weight = values[index].weight;
+      const a = samples[index].value;
+      const b = values[index].value;
+      covariance += weight * (a - templateMean) * (b - candidateMean);
+      templateVariance += weight * (a - templateMean) ** 2;
+      candidateVariance += weight * (b - candidateMean) ** 2;
     }
-    const candidateDeviation = Math.sqrt(
-      Math.max(candidateVariance / values.length, 1),
-    );
     const correlation =
       covariance /
-      values.length /
-      Math.max(1, template.deviation * candidateDeviation);
-    const appearanceScore = Math.max(
-      0,
-      1 - absoluteDelta / values.length / 90,
+      Math.max(
+        1,
+        Math.sqrt(templateVariance * candidateVariance),
+      );
+    const correlationScore = Math.max(0, (correlation + 1) / 2);
+
+    return (
+      (orientationTotal / weightedTotal) * 0.46 +
+      (magnitudeTotal / weightedTotal) * 0.27 +
+      correlationScore * 0.17 +
+      (appearanceTotal / weightedTotal) * 0.10
     );
-    const edgeScore = Math.max(
-      0,
-      1 - edgeDelta / values.length / 150,
+  }
+
+  function candidateCorrelation(searchImage, searchOrigin, box, template) {
+    const coreScore = previewSampleScore(
+      searchImage,
+      searchOrigin,
+      box,
+      template.samples,
     );
-    return correlation * 0.52 + edgeScore * 0.33 + appearanceScore * 0.15;
+    const contextScore = previewSampleScore(
+      searchImage,
+      searchOrigin,
+      box,
+      template.contextSamples || [],
+    );
+    return (template.contextSamples || []).length
+      ? coreScore * 0.96 + contextScore * 0.04
+      : coreScore;
   }
 
   function boxIoU(a, b) {

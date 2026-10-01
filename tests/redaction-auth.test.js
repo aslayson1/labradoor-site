@@ -200,7 +200,12 @@ test('admin editor assets compile and use the server worker', () => {
   assert.match(editor, /trackingContext\.getImageData/);
   assert.doesNotMatch(editor, /\bcontext\.getImageData/);
   assert.match(editor, /candidateStabilityPenalty/);
-  assert.match(editor, /edgeScore/);
+  assert.match(editor, /previewStrongMatch = 0\.50/);
+  assert.match(editor, /previewWeakMatch = 0\.34/);
+  assert.match(editor, /previewGradient/);
+  assert.match(editor, /candidates\.sort/);
+  assert.match(editor, /coreScore \* 0\.96/);
+  assert.match(editor, /contextScore \* 0\.04/);
   assert.match(editor, /expectedMotion/);
   assert.match(editor, /contextPad/);
   assert.match(editor, /motionX/);
