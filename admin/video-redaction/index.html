@@ -85,18 +85,7 @@
         </div>
 
         <aside class="panel">
-          <h3>Protect private text</h3>
-
-          <div class="section">
-            <div class="label"><span>Private text to detect</span></div>
-            <div class="checks">
-              <label class="check"><input type="checkbox" data-kind="address" checked>Addresses</label>
-              <label class="check"><input type="checkbox" data-kind="owner_name" checked>Owner names</label>
-              <label class="check"><input type="checkbox" data-kind="phone" checked>Phone numbers</label>
-              <label class="check"><input type="checkbox" data-kind="email" checked>Email addresses</label>
-            </div>
-            <div class="sub">Every decoded frame is inspected for visual changes. OCR re-runs on changed or risky frames plus periodic safety refreshes, while each private-text region is tracked independently through scrolling, scaling, and rotation.</div>
-          </div>
+          <h3>Protect private text manually</h3>
 
           <div class="section">
             <div class="label"><span>Protection style</span></div>
@@ -105,14 +94,20 @@
               <button type="button" data-style="pixelate">Pixelate</button>
               <button type="button" data-style="blur" class="on">Heavy blur</button>
             </div>
+            <div class="sub">Manual masks use a fixed 6 px safety edge so you only need to draw a tight box around the private text.</div>
           </div>
 
-          <div class="section">
-            <div class="label"><span>Tight safety padding</span><span id="paddingValue">6 px</span></div>
+          <div hidden aria-hidden="true">
+            <div class="checks">
+              <label><input type="checkbox" data-kind="address" checked>Addresses</label>
+              <label><input type="checkbox" data-kind="owner_name" checked>Owner names</label>
+              <label><input type="checkbox" data-kind="phone" checked>Phone numbers</label>
+              <label><input type="checkbox" data-kind="email" checked>Email addresses</label>
+            </div>
+            <span id="paddingValue">6 px</span>
             <input id="padding" type="range" min="2" max="30" value="6">
-            <div class="label" style="margin-top:14px"><span>Detection sensitivity</span><span id="confidenceValue">60% · High recall</span></div>
+            <span id="confidenceValue">60% · High recall</span>
             <input id="confidence" type="range" min="25" max="85" value="60">
-            <div class="sub">Higher sensitivity masks more uncertain text. Independent verification still checks every decoded frame.</div>
           </div>
 
           <div class="section actions">
@@ -183,8 +178,8 @@
 </div>
 
 <video id="source" class="sr" playsinline preload="metadata"></video>
-<script src="/admin/video-redaction/manual-tracker.js?v=20261001-fast-motion" defer></script>
-<script src="/admin/video-redaction/editor.js?v=20261001-fast-motion" defer></script>
+<script src="/admin/video-redaction/manual-tracker.js?v=20261001-real-loss-threshold" defer></script>
+<script src="/admin/video-redaction/editor.js?v=20261001-real-loss-threshold" defer></script>
 <!-- manual-tracking-deploy-refresh -->
 </body>
 </html>
