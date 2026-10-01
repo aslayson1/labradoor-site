@@ -193,6 +193,10 @@ test('admin editor assets compile and use the server worker', () => {
   assert.match(editor, /server connection problem/i);
   assert.match(editor, /previewBoxFor/);
   assert.match(editor, /searchPreviewBox/);
+  assert.match(editor, /previewLostFrameLimit = 3/);
+  assert.match(editor, /tracker\.mismatchFrames/);
+  assert.match(editor, /tracker\.lost = true/);
+  assert.doesNotMatch(editor, /wideSearch/);
   assert.match(editor, /applyPreviewProtection/);
   assert.match(editor, /context\.filter = 'blur\(12px\)'/);
   assert.match(html, /automatic deletion within 24 hours/i);
