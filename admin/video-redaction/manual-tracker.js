@@ -480,6 +480,11 @@
       Math.ceil(predicted.y1 + yRadius),
     );
 
+    const fastSearch =
+      elapsedSeconds > 0.024 ||
+      Math.abs(expectedMotion.dx || 0) > width * 0.22 ||
+      Math.abs(expectedMotion.dy || 0) > height * 0.75;
+
     function evaluate(x, y) {
       const candidate = { x1: x, y1: y, x2: x + width, y2: y + height };
       const recentCorrelation = scoreCorrelation(
@@ -498,8 +503,8 @@
       );
       const scale = Math.max(34, height * 2.8, width * 0.5);
       const continuityPenalty = Math.min(
-        0.12,
-        (predictionDistance / scale) * 0.09,
+        fastSearch ? 0.10 : 0.16,
+        (predictionDistance / scale) * (fastSearch ? 0.08 : 0.13),
       );
       const overlap = occupied.reduce(
         (maximum, box) => Math.max(maximum, boxIoU(candidate, box)),
@@ -508,22 +513,51 @@
       const collisionPenalty =
         overlap >= 0.55 ? 0.60 : overlap >= 0.2 ? 0.30 : 0;
 
-      // Correlation is intentionally the primary signal. It is much cheaper
-      // than the old gradient/fingerprint stack and keeps us from causing the
-      // frame drops that then create even larger tracking jumps.
+      if (fastSearch) {
+        // On skipped/high-motion frames, correlation-only matching is both
+        // faster and more tolerant of the large translation. The original
+        // anchor remains half of the score so nearby lookalikes cannot take
+        // over simply because they resemble the immediately previous frame.
+        const score =
+          recentCorrelation * 0.50 +
+          anchorCorrelation * 0.50 -
+          continuityPenalty -
+          collisionPenalty;
+        return {
+          box: candidate,
+          score,
+          recentScore: recentCorrelation,
+          anchorScore: anchorCorrelation,
+          recentCorrelation,
+          anchorCorrelation,
+          identityScore: 1,
+          fastSearch: true,
+        };
+      }
+
+      // Preserve the more discriminating edge-aware score for ordinary
+      // frame-to-frame movement; it already handles nearby text well.
+      const recentScore = scoreTemplate(frame, candidate, recentTemplate);
+      const identityScore = scoreIdentityEdges(
+        frame,
+        candidate,
+        anchorTemplate,
+      );
       const score =
-        Math.max(-1, recentCorrelation) * 0.50 +
-        Math.max(-1, anchorCorrelation) * 0.50 -
+        recentScore * 0.42 +
+        Math.max(0, anchorCorrelation) * 0.48 +
+        identityScore * 0.10 -
         continuityPenalty -
         collisionPenalty;
-
       return {
         box: candidate,
         score,
-        recentScore: recentCorrelation,
+        recentScore,
         anchorScore: anchorCorrelation,
         recentCorrelation,
         anchorCorrelation,
+        identityScore,
+        fastSearch: false,
       };
     }
 
@@ -552,12 +586,16 @@
       }
     }
 
-    const strong =
-      best.recentCorrelation >=
-        (options.minimumRecentCorrelation || 0.64) &&
-      best.anchorCorrelation >=
-        (options.minimumAnchorCorrelation || 0.72) &&
-      best.score >= (options.minimumCombinedScore || 0.64);
+    const strong = best.fastSearch
+      ? best.recentCorrelation >=
+          (options.minimumRecentCorrelation || 0.62) &&
+        best.anchorCorrelation >=
+          (options.minimumAnchorCorrelation || 0.72) &&
+        best.score >= (options.minimumCombinedScore || 0.62)
+      : best.recentScore >= (options.minimumRecentScore || 0.56) &&
+        best.anchorCorrelation >=
+          (options.minimumAnchorCorrelation || 0.74) &&
+        best.score >= (options.minimumCombinedScore || 0.55);
 
     return {
       ...best,
