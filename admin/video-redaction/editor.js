@@ -601,6 +601,15 @@
     return tracker;
   }
 
+  function losePreviewTracker(item, tracker, now, reason) {
+    tracker.lost = true;
+    setJobStatus(
+      'Mask tracking needs review',
+      `${item.kind === 'owner_name' ? 'Owner name' : item.kind || 'Selected'} mask stopped at ${formatTime(now)}. ${reason} Pause on the text and draw a new anchor; review this point before rendering.`,
+      'warn',
+    );
+  }
+
   function previewBoxFor(item, now) {
     if (!visibleAt(item, now)) return null;
     if (item.trackingMode !== 'forward') return item.box;
@@ -643,7 +652,7 @@
     if (jumped) {
       // A seek has no reliable previous-frame motion. Do not guess or scan
       // broadly for a lookalike elsewhere on screen.
-      tracker.lost = true;
+      losePreviewTracker(item, tracker, now, 'The timeline jumped beyond the tracked frames.');
       return null;
     }
 
@@ -654,7 +663,7 @@
       tracker.lastTime = now;
 
       if (match.exitedFrame) {
-        tracker.lost = true;
+        losePreviewTracker(item, tracker, now, 'The selected region left the frame.');
         return null;
       }
 
@@ -700,7 +709,7 @@
         // than drifting onto a button, neighboring row, or repeated text.
         tracker.mismatchFrames += 1;
         if (tracker.mismatchFrames >= previewLostFrameLimit) {
-          tracker.lost = true;
+          losePreviewTracker(item, tracker, now, 'The selected region could no longer be matched confidently.');
           return null;
         }
       }

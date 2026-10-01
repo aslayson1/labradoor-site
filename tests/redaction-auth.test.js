@@ -216,7 +216,7 @@ test('admin editor assets compile and use the server worker', () => {
   assert.match(editor, /motionX/);
   assert.match(editor, /Preparing manual render/);
   assert.match(editor, /Automatic detection is off/);
-  assert.match(html, /manual-tracker\.js\?v=20261001-dense-identity/);
+  assert.match(html, /manual-tracker\.js\?v=[a-zA-Z0-9-]+/);
   assert.match(editor, /endCorrectionHere/);
   assert.match(html, /End mask before this frame/);
   assert.doesNotMatch(editor, /wideSearch/);

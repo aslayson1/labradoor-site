@@ -291,3 +291,15 @@ test('dense selected-pixel correlation remains high on the exact target', () => 
 
   assert.ok(tracker.scoreDenseCorrelation(next, moved, anchor) > 0.90);
 });
+
+test('fractional hand-drawn boxes compare the exact pixels captured by the template', () => {
+  const frame = makeFrame();
+  drawTextLikeRow(frame, 55, 88);
+  const box = { x1: 49.333, y1: 78.667, x2: 180.667, y2: 111.333 };
+  const anchor = tracker.makeTemplate(frame, box);
+  assert.ok(tracker.scoreDenseCorrelation(frame, box, anchor) > 0.9999,
+    'sampling must not stretch the fingerprint by one pixel during matching');
+  const match = tracker.findBestMatch(frame, box, anchor, anchor);
+  assert.equal(match.strong, true);
+  assert.deepEqual(match.box, box, 'a stationary fractional mask must not snap to another position');
+});

@@ -275,34 +275,26 @@
     const samples = template?.fingerprint || [];
     if (!samples.length) return -1;
 
-    const values = new Array(samples.length);
-    let candidateSum = 0;
-    for (let index = 0; index < samples.length; index += 1) {
-      const sample = samples[index];
-      const x = box.x1 + sample.fx * (box.x2 - box.x1);
-      const y = box.y1 + sample.fy * (box.y2 - box.y1);
-      if (x < 0 || y < 0 || x >= frame.width || y >= frame.height) {
-        return -1;
-      }
-      const value = grayAt(frame, x, y);
-      values[index] = value;
-      candidateSum += value;
-    }
-
-    const candidateMean = candidateSum / values.length;
+    let sum = 0;
+    let squareSum = 0;
     let covariance = 0;
     let templateVariance = 0;
-    let candidateVariance = 0;
-    for (let index = 0; index < samples.length; index += 1) {
-      const a = samples[index].value - template.fingerprintMean;
-      const b = values[index] - candidateMean;
-      covariance += a * b;
-      templateVariance += a * a;
-      candidateVariance += b * b;
+    const width = Math.max(1, box.x2 - box.x1 - 1);
+    const height = Math.max(1, box.y2 - box.y1 - 1);
+    for (const sample of samples) {
+      const x = Math.round(box.x1 + sample.fx * width);
+      const y = Math.round(box.y1 + sample.fy * height);
+      if (x < 0 || y < 0 || x >= frame.width || y >= frame.height) return -1;
+      const index = (y * frame.width + x) * 4;
+      const value = frame.data[index] * 0.299 + frame.data[index + 1] * 0.587 + frame.data[index + 2] * 0.114;
+      const centered = sample.value - template.fingerprintMean;
+      sum += value;
+      squareSum += value * value;
+      covariance += centered * value;
+      templateVariance += centered * centered;
     }
-
-    return covariance /
-      Math.max(1, Math.sqrt(templateVariance * candidateVariance));
+    const candidateVariance = Math.max(0, squareSum - sum * sum / samples.length);
+    return covariance / Math.max(1, Math.sqrt(templateVariance * candidateVariance));
   }
 
   function scoreIdentityEdges(frame, box, template) {
@@ -575,53 +567,67 @@
       };
     }
 
-    let best = evaluate(predicted.x1, predicted.y1);
-    const coarseStep = Math.max(
-      3,
-      Number(options.coarseStep) || (fastSearch ? 5 : 3),
-    );
+    function confirmed(candidate) {
+      return candidate.recentCorrelation >= (options.minimumRecentCorrelation || 0.70) &&
+        candidate.anchorCorrelation >= (options.minimumAnchorCorrelation || 0.82) &&
+        candidate.score >= (options.minimumCombinedScore || 0.60);
+    }
+    function result(candidate) {
+      return {
+        ...candidate, strong: confirmed(candidate), exitingFrame: false, exitedFrame: false,
+        predicted, predictedVisibleFraction,
+        movement: Math.hypot(candidate.box.x1 - currentBox.x1, candidate.box.y1 - currentBox.y1),
+        searchRadiusX: xRadius, searchRadiusY: yRadius,
+      };
+    }
+    // Most UI frames are stationary or move a few pixels. Confirm them close
+    // to the motion prediction before paying for a full search. This also
+    // prevents skipped frames caused by exhaustive matching on every tick.
+    let localBest = evaluate(predicted.x1, predicted.y1);
+    if (confirmed(localBest) && localBest.score >= 0.88) return result(localBest);
+    for (let y = Math.max(minY, Math.floor(predicted.y1 - 4)); y <= Math.min(maxY, Math.ceil(predicted.y1 + 4)); y++) {
+      for (let x = Math.max(minX, Math.floor(predicted.x1 - 3)); x <= Math.min(maxX, Math.ceil(predicted.x1 + 3)); x++) {
+        const candidate = evaluate(x, y);
+        if (candidate.score > localBest.score) localBest = candidate;
+      }
+    }
+    if (confirmed(localBest)) return result(localBest);
 
+    // Character texture has narrow correlation peaks. A single coarse-grid
+    // winner can be an unrelated alias while the real text falls between grid
+    // positions. Refine several independent candidates, always including the
+    // last known and predicted positions.
+    let best = evaluate(predicted.x1, predicted.y1);
+    const seeds = [best, evaluate(currentBox.x1, currentBox.y1)];
+    const coarseStep = Math.max(3, Number(options.coarseStep) || (fastSearch ? 5 : 3));
     for (let y = minY; y <= maxY; y += coarseStep) {
       for (let x = minX; x <= maxX; x += coarseStep) {
         const candidate = evaluate(x, y);
         if (candidate.score > best.score) best = candidate;
+        seeds.push(candidate);
+      }
+    }
+    seeds.sort((a, b) => b.score - a.score);
+    const finalists = [evaluate(predicted.x1, predicted.y1), evaluate(currentBox.x1, currentBox.y1), ...seeds.slice(0, 8)];
+    const visited = new Set();
+    const refine = coarseStep;
+    for (const seed of finalists) {
+      const left = Math.max(minX, Math.floor(seed.box.x1 - refine));
+      const right = Math.min(maxX, Math.ceil(seed.box.x1 + refine));
+      const top = Math.max(minY, Math.floor(seed.box.y1 - refine));
+      const bottom = Math.min(maxY, Math.ceil(seed.box.y1 + refine));
+      for (let y = top; y <= bottom; y += 1) {
+        for (let x = left; x <= right; x += 1) {
+          const key = y * frame.width + x;
+          if (visited.has(key)) continue;
+          visited.add(key);
+          const candidate = evaluate(x, y);
+          if (candidate.score > best.score) best = candidate;
+        }
       }
     }
 
-    const refine = 5;
-    const refineMinX = Math.max(minX, Math.floor(best.box.x1 - refine));
-    const refineMaxX = Math.min(maxX, Math.ceil(best.box.x1 + refine));
-    const refineMinY = Math.max(minY, Math.floor(best.box.y1 - refine));
-    const refineMaxY = Math.min(maxY, Math.ceil(best.box.y1 + refine));
-    for (let y = refineMinY; y <= refineMaxY; y += 1) {
-      for (let x = refineMinX; x <= refineMaxX; x += 1) {
-        const candidate = evaluate(x, y);
-        if (candidate.score > best.score) best = candidate;
-      }
-    }
-
-    const strong =
-      best.recentCorrelation >=
-        (options.minimumRecentCorrelation || 0.70) &&
-      best.anchorCorrelation >=
-        (options.minimumAnchorCorrelation || 0.82) &&
-      best.score >=
-        (options.minimumCombinedScore || 0.60);
-
-    return {
-      ...best,
-      strong,
-      exitingFrame: false,
-      exitedFrame: false,
-      predicted,
-      predictedVisibleFraction,
-      movement: Math.hypot(
-        best.box.x1 - currentBox.x1,
-        best.box.y1 - currentBox.y1,
-      ),
-      searchRadiusX: xRadius,
-      searchRadiusY: yRadius,
-    };
+    return result(best);
   }
 
   return {
