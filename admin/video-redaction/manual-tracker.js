@@ -478,7 +478,7 @@
       best.recentScore >= (options.minimumRecentScore || 0.60) &&
       best.anchorScore >= (options.minimumAnchorScore || 0.50) &&
       best.identityScore >= (options.minimumIdentityScore || 0.62) &&
-      best.fingerprintScore >= (options.minimumFingerprintScore || 0.64) &&
+      best.fingerprintScore >= (options.minimumFingerprintScore || 0.75) &&
       best.score >= (options.minimumCombinedScore || 0.52);
 
     return {
