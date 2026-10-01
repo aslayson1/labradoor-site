@@ -455,29 +455,58 @@
   }
 
   function makePreviewTemplate(box) {
-    const x1 = Math.max(0, Math.floor(box.x1));
-    const y1 = Math.max(0, Math.floor(box.y1));
-    const width = Math.max(4, Math.min(display.width - x1, Math.ceil(box.x2 - box.x1)));
-    const height = Math.max(4, Math.min(display.height - y1, Math.ceil(box.y2 - box.y1)));
+    const boxWidth = Math.max(4, box.x2 - box.x1);
+    const boxHeight = Math.max(4, box.y2 - box.y1);
+    const contextPad = Math.max(
+      4,
+      Math.min(14, Math.round(boxHeight * 0.55)),
+    );
+    const captureX1 = Math.max(0, Math.floor(box.x1 - contextPad));
+    const captureY1 = Math.max(0, Math.floor(box.y1 - contextPad));
+    const captureX2 = Math.min(
+      display.width,
+      Math.ceil(box.x2 + contextPad),
+    );
+    const captureY2 = Math.min(
+      display.height,
+      Math.ceil(box.y2 + contextPad),
+    );
+    const width = Math.max(4, captureX2 - captureX1);
+    const height = Math.max(4, captureY2 - captureY1);
     if (width < 4 || height < 4) return null;
 
     let image;
     try {
-      image = trackingContext.getImageData(x1, y1, width, height);
+      image = trackingContext.getImageData(
+        captureX1,
+        captureY1,
+        width,
+        height,
+      );
     } catch {
       return null;
     }
 
-    const cols = 9;
-    const rows = 5;
+    const cols = Math.max(13, Math.min(23, Math.round(width / 5)));
+    const rows = Math.max(9, Math.min(15, Math.round(height / 4)));
     const samples = [];
     let sum = 0;
     for (let row = 0; row < rows; row += 1) {
       for (let col = 0; col < cols; col += 1) {
-        const fx = (col + 0.5) / cols;
-        const fy = (row + 0.5) / rows;
-        const value = grayAt(image, width, fx * (width - 1), fy * (height - 1));
-        samples.push({ fx, fy, value });
+        const px = ((col + 0.5) / cols) * (width - 1);
+        const py = ((row + 0.5) / rows) * (height - 1);
+        const canvasX = captureX1 + px;
+        const canvasY = captureY1 + py;
+        const fx = (canvasX - box.x1) / boxWidth;
+        const fy = (canvasY - box.y1) / boxHeight;
+        const value = grayAt(image, width, px, py);
+        const gx =
+          grayAt(image, width, px + 1.5, py) -
+          grayAt(image, width, px - 1.5, py);
+        const gy =
+          grayAt(image, width, px, py + 1.5) -
+          grayAt(image, width, px, py - 1.5);
+        samples.push({ fx, fy, value, gx, gy });
         sum += value;
       }
     }
@@ -489,22 +518,31 @@
       samples,
       mean,
       deviation: Math.sqrt(Math.max(variance, 1)),
-      width: box.x2 - box.x1,
-      height: box.y2 - box.y1,
+      width: boxWidth,
+      height: boxHeight,
+      contextPad,
     };
   }
 
   function candidateCorrelation(searchImage, searchOrigin, box, template) {
     let candidateSum = 0;
     let absoluteDelta = 0;
+    let edgeDelta = 0;
     const values = [];
     for (const sample of template.samples) {
       const x = box.x1 + sample.fx * (box.x2 - box.x1) - searchOrigin.x;
       const y = box.y1 + sample.fy * (box.y2 - box.y1) - searchOrigin.y;
       const value = grayAt(searchImage, searchImage.width, x, y);
+      const gx =
+        grayAt(searchImage, searchImage.width, x + 1.5, y) -
+        grayAt(searchImage, searchImage.width, x - 1.5, y);
+      const gy =
+        grayAt(searchImage, searchImage.width, x, y + 1.5) -
+        grayAt(searchImage, searchImage.width, x, y - 1.5);
       values.push(value);
       candidateSum += value;
       absoluteDelta += Math.abs(sample.value - value);
+      edgeDelta += Math.abs(sample.gx - gx) + Math.abs(sample.gy - gy);
     }
     const candidateMean = candidateSum / values.length;
     let candidateVariance = 0;
@@ -526,7 +564,11 @@
       0,
       1 - absoluteDelta / values.length / 90,
     );
-    return correlation * 0.78 + appearanceScore * 0.22;
+    const edgeScore = Math.max(
+      0,
+      1 - edgeDelta / values.length / 150,
+    );
+    return correlation * 0.52 + edgeScore * 0.33 + appearanceScore * 0.15;
   }
 
   function boxIoU(a, b) {
@@ -551,27 +593,39 @@
     });
   }
 
-  function candidateStabilityPenalty(candidate, current, occupied) {
+  function candidateStabilityPenalty(
+    candidate,
+    current,
+    occupied,
+    expectedMotion = null,
+  ) {
     const currentCenterX = (current.x1 + current.x2) / 2;
     const currentCenterY = (current.y1 + current.y2) / 2;
     const candidateCenterX = (candidate.x1 + candidate.x2) / 2;
     const candidateCenterY = (candidate.y1 + candidate.y2) / 2;
-    const distance = Math.hypot(
-      candidateCenterX - currentCenterX,
-      candidateCenterY - currentCenterY,
-    );
+    const dx = candidateCenterX - currentCenterX;
+    const dy = candidateCenterY - currentCenterY;
+    const distance = Math.hypot(dx, dy);
     const scale = Math.max(
       36,
       (current.x2 - current.x1) * 1.4,
       (current.y2 - current.y1) * 3.2,
     );
-    const motionPenalty = Math.min(0.18, (distance / scale) * 0.12);
+    const motionPenalty = Math.min(0.16, (distance / scale) * 0.10);
+    let continuityPenalty = 0;
+    if (expectedMotion) {
+      const deviation = Math.hypot(
+        dx - expectedMotion.dx,
+        dy - expectedMotion.dy,
+      );
+      continuityPenalty = Math.min(0.24, (deviation / scale) * 0.22);
+    }
     const collision = occupied.reduce(
       (maximum, box) => Math.max(maximum, boxIoU(candidate, box)),
       0,
     );
     const collisionPenalty = collision >= 0.55 ? 0.55 : collision >= 0.2 ? 0.28 : 0;
-    return motionPenalty + collisionPenalty;
+    return motionPenalty + continuityPenalty + collisionPenalty;
   }
 
   function searchPreviewBox(item, tracker, now) {
@@ -607,7 +661,18 @@
     }
 
     const occupied = otherTrackedBoxes(item.id, now);
-    const coarseStep = 4;
+    const delta = Math.max(1 / 120, now - tracker.lastTime);
+    const motionScale =
+      tracker.lastDelta && tracker.lastDelta > 0
+        ? Math.max(0.4, Math.min(2.5, delta / tracker.lastDelta))
+        : 1;
+    const expectedMotion = tracker.hasMotion
+      ? {
+          dx: tracker.motionX * motionScale,
+          dy: tracker.motionY * motionScale,
+        }
+      : null;
+    const coarseStep = 3;
     let best = { box: current, score: -Infinity };
     const minX = searchX1;
     const maxX = Math.max(minX, searchX2 - width);
@@ -625,7 +690,7 @@
         );
         const score =
           identityScore -
-          candidateStabilityPenalty(candidate, current, occupied);
+          candidateStabilityPenalty(candidate, current, occupied, expectedMotion);
         if (score > best.score) best = { box: candidate, score };
       }
     }
@@ -646,7 +711,7 @@
         );
         const score =
           identityScore -
-          candidateStabilityPenalty(candidate, current, occupied);
+          candidateStabilityPenalty(candidate, current, occupied, expectedMotion);
         if (score > best.score) best = { box: candidate, score };
       }
     }
@@ -657,7 +722,7 @@
         { x: searchX1, y: searchY1 },
         current,
         tracker.template,
-      ) - candidateStabilityPenalty(current, current, occupied);
+      ) - candidateStabilityPenalty(current, current, occupied, expectedMotion);
     const movement = Math.hypot(
       best.box.x1 - current.x1,
       best.box.y1 - current.y1,
@@ -692,6 +757,10 @@
           confidence: 1,
           mismatchFrames: 0,
           lost: false,
+          hasMotion: false,
+          motionX: 0,
+          motionY: 0,
+          lastDelta: 0,
         };
         previewTrackers.set(item.id, tracker);
       }
@@ -711,6 +780,10 @@
         tracker.confidence = 1;
         tracker.mismatchFrames = 0;
         tracker.lost = false;
+        tracker.hasMotion = false;
+        tracker.motionX = 0;
+        tracker.motionY = 0;
+        tracker.lastDelta = 0;
       }
       return tracker.box;
     }
@@ -732,15 +805,29 @@
       tracker.lastTime = now;
 
       if (match.score >= previewStrongMatch) {
+        const dx = match.box.x1 - tracker.box.x1;
+        const dy = match.box.y1 - tracker.box.y1;
+        if (Math.hypot(dx, dy) >= 1) {
+          if (!tracker.hasMotion) {
+            tracker.motionX = dx;
+            tracker.motionY = dy;
+            tracker.hasMotion = true;
+          } else {
+            tracker.motionX = tracker.motionX * 0.58 + dx * 0.42;
+            tracker.motionY = tracker.motionY * 0.58 + dy * 0.42;
+          }
+          tracker.lastDelta = delta;
+        } else if (tracker.hasMotion) {
+          tracker.motionX *= 0.86;
+          tracker.motionY *= 0.86;
+        }
         tracker.box = match.box;
         tracker.mismatchFrames = 0;
       } else {
-        if (match.score >= previewWeakMatch) {
-          // A weak-but-plausible frame can happen during scrolling/motion blur.
-          // Follow it briefly, but require the original visual identity to
-          // recover quickly or terminate this occurrence.
-          tracker.box = match.box;
-        }
+        // Never move a hand-placed mask on a weak match. Motion blur can make
+        // several nearby text regions look plausible for a frame or two.
+        // Hold the last confirmed position and require the exact identity to
+        // recover; otherwise end this occurrence instead of visibly drifting.
         tracker.mismatchFrames += 1;
         if (tracker.mismatchFrames >= previewLostFrameLimit) {
           tracker.lost = true;
