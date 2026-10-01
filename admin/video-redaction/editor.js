@@ -49,7 +49,7 @@
     phone: '#2878d0',
     email: '#1f9d64',
   };
-  const terminalStatuses = new Set(['complete', 'needs_review', 'failed']);
+  const terminalStatuses = new Set(['complete', 'needs_review', 'failed', 'cancelled']);
   const statusLabels = {
     queued: 'Worker starting',
     analyzing: 'Detecting private text frame by frame',
@@ -58,6 +58,7 @@
     needs_review: 'Manual review required',
     complete: 'Independent verification passed',
     failed: 'Processing stopped',
+    cancelled: 'Processing cancelled',
   };
   const reasonLabels = {
     ocr_failure: 'OCR check failed',
@@ -280,7 +281,10 @@
   }
 
   byId('choose').addEventListener('click', () => fileInput.click());
-  replaceButton.addEventListener('click', () => fileInput.click());
+  replaceButton.addEventListener('click', async () => {
+    if (busy) await cancelCurrentJob();
+    fileInput.click();
+  });
   fileInput.addEventListener('change', (event) => loadVideo(event.target.files[0]));
 
   for (const eventName of ['dragenter', 'dragover']) {
@@ -730,10 +734,33 @@
   function setBusy(value) {
     busy = value;
     processButton.disabled = value;
-    replaceButton.disabled = value;
-    fileInput.disabled = value;
+    replaceButton.disabled = false;
+    replaceButton.textContent = value
+      ? 'Cancel & choose another video'
+      : 'Choose another video';
+    fileInput.disabled = false;
     applyCorrections.disabled = value || corrections.length === 0;
     drawFrame();
+  }
+
+  async function cancelCurrentJob() {
+    const job = currentJob;
+    runVersion += 1;
+    if (job && !terminalStatuses.has(job.status)) {
+      try {
+        const response = await apiFetch(
+          `/v1/jobs/${encodeURIComponent(job.id)}/cancel`,
+          { method: 'POST' },
+        );
+        if (response.ok) currentJob = await response.json();
+      } catch {
+        // Replacing the local video should not be blocked by a cancellation
+        // request failure. The worker also has a hard timeout and private data
+        // retention policy.
+      }
+    }
+    setBusy(false);
+    hideProgress();
   }
 
   function retryableUploadError(message, retryable = true) {
@@ -1010,6 +1037,24 @@
     throw lastError || new Error('Could not load the verification review');
   }
 
+  function performanceSummary() {
+    const metrics = currentReview?.result?.performance;
+    if (!metrics) return '';
+    const seconds = (value) => {
+      const numeric = Number(value || 0);
+      if (numeric < 60) return `${numeric.toFixed(1)}s`;
+      return `${(numeric / 60).toFixed(1)}m`;
+    };
+    return [
+      `Total ${seconds(metrics.total_seconds)}`,
+      `analysis ${seconds(metrics.analysis_seconds)}`,
+      `render ${seconds(metrics.render_seconds)}`,
+      `verify ${seconds(metrics.verification_seconds)}`,
+      `OCR ${Number(metrics.analysis_frames_ocr || 0).toLocaleString()} frames`,
+      `reused ${Number(metrics.analysis_frames_reused || 0).toLocaleString()}`,
+    ].join(' · ');
+  }
+
   async function loadVerifiedOutput() {
     let lastError = null;
     for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -1023,11 +1068,12 @@
         outputUrl = URL.createObjectURL(blob);
         result.src = outputUrl;
         output.hidden = false;
-        outputMeta.textContent = `${totalFrames.toLocaleString()} verified frames · ${(
-          blob.size /
-          1024 /
-          1024
-        ).toFixed(1)} MB MP4`;
+        const performance = performanceSummary();
+        outputMeta.textContent = [
+          `${totalFrames.toLocaleString()} verified frames`,
+          `${(blob.size / 1024 / 1024).toFixed(1)} MB MP4`,
+          performance,
+        ].filter(Boolean).join(' · ');
         return;
       } catch (error) {
         if (
@@ -1052,7 +1098,8 @@
     if (currentJob.status === 'complete') {
       setJobStatus(
         'Independent verification passed',
-        'The protected MP4 is available below. Review it before publishing.',
+        performanceSummary() ||
+          'The protected MP4 is available below. Review it before publishing.',
         'ok',
       );
       correctionSection.hidden = false;
@@ -1060,10 +1107,18 @@
     } else if (currentJob.status === 'needs_review') {
       setJobStatus(
         'Output held for manual review',
-        'Nothing unsafe was released. Open each flagged frame and add a tight correction.',
+        performanceSummary() ||
+          'Nothing unsafe was released. Open each flagged frame and add a tight correction.',
         'warn',
       );
       correctionSection.hidden = false;
+      output.hidden = true;
+    } else if (currentJob.status === 'cancelled') {
+      setJobStatus(
+        'Processing cancelled',
+        'The worker was stopped and no unverified output was released.',
+        'warn',
+      );
       output.hidden = true;
     } else {
       const detail =
