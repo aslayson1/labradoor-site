@@ -568,6 +568,8 @@
           dy: expectedMotion.dy * trackingScale,
         },
         elapsedSeconds: delta,
+        minimumAnchorCorrelation:
+          tracker.confirmedFrames >= 3 ? 0.60 : 0.74,
       },
     );
     return {
@@ -591,6 +593,7 @@
       lastDelta: 0,
       confidence: 1,
       mismatchFrames: 0,
+      confirmedFrames: 0,
       lost: false,
       hasMotion: false,
       motionX: 0,
@@ -620,14 +623,19 @@
       return null;
     }
 
-    if (atAnchor) {
-      // Seeking back to the user's exact placement is the only time we reset
-      // identity and motion. During normal playback the very next video frame
-      // is allowed to move immediately.
-      if (now < tracker.lastTime - 0.02) {
-        tracker = resetPreviewTracker(item, now) || tracker;
+    if (atAnchor || (source.paused && Math.abs(source.currentTime - item.startSeconds) <= 0.12)) {
+      // A newly hand-drawn mask must remain exactly where the user placed it
+      // until playback actually advances. A queued video-frame callback can
+      // arrive after pause/mouse-up with a slightly newer mediaTime; never let
+      // that stale callback move the anchor before the user presses Play.
+      if (
+        now < tracker.lastTime - 0.02 ||
+        (source.paused && Math.abs(source.currentTime - item.startSeconds) <= 0.12)
+      ) {
+        tracker = resetPreviewTracker(item, source.currentTime) || tracker;
+        tracker.box = { ...item.box };
       }
-      return tracker.box;
+      return item.box;
     }
 
     if (tracker.lost) return null;
@@ -687,6 +695,7 @@
         );
         tracker.recentTemplate =
           makeRecentTemplate(tracker.box) || tracker.recentTemplate;
+        tracker.confirmedFrames += 1;
         tracker.mismatchFrames = 0;
       } else {
         // Never move on an uncertain match. Keep the last confirmed box for
@@ -1028,6 +1037,10 @@
         corrections.push(item);
         selectedCorrectionId = item.id;
         previewTrackers.delete(item.id);
+        // Capture the exact hand-drawn region as the anchor immediately.
+        // This prevents the first preview redraw from searching and jumping
+        // to another nearby UI feature before playback has advanced.
+        resetPreviewTracker(item, source.currentTime);
         setJobStatus(
           'Live mask preview ready',
           'Press Play to preview the blur following this text. Then use Track & mask selected text to render the final protected video.',
