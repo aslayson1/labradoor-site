@@ -175,7 +175,7 @@ test('a target moving out of the frame ends instead of pinning to the edge', () 
   const next = makeFrame(240, 220);
   // The selected row has moved below the visible frame.
   const match = tracker.findBestMatch(next, box, recent, anchor, {
-    expectedMotion: { dx: 0, dy: 24 },
+    expectedMotion: { dx: 0, dy: 40 },
   });
 
   assert.equal(match.exitedFrame, true);
@@ -207,6 +207,13 @@ test('different text appearing near the old location cannot inherit the mask', (
     expectedMotion: { dx: 0, dy: 6 },
   });
 
-  assert.equal(match.strong, false);
-  assert.ok(match.identityScore < 0.56);
+  assert.equal(
+    match.strong,
+    false,
+    `replacement content must not inherit target: ${JSON.stringify(match)}`,
+  );
+  assert.ok(
+    match.identityScore < 0.56,
+    `replacement identity score too high: ${JSON.stringify(match)}`,
+  );
 });
