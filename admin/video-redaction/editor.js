@@ -400,6 +400,9 @@
     play.textContent = 'Play';
     animateSource();
   });
+  source.addEventListener('seeking', () => {
+    for (const tracker of previewTrackers.values()) tracker.seeked = true;
+  });
   source.addEventListener('seeked', animateSource);
   source.addEventListener('loadeddata', animateSource);
   scrub.addEventListener('input', () => {
@@ -648,7 +651,12 @@
     if (tracker.lost) return null;
 
     const delta = now - tracker.lastTime;
-    const jumped = delta < -0.02 || delta > 0.35;
+    // A delayed presented-frame callback during normal playback is not a seek.
+    // The exact identity search can safely reconnect across skipped callbacks;
+    // only an actual timeline seek invalidates that continuity.
+    const seeked = tracker.seeked;
+    tracker.seeked = false;
+    const jumped = delta < -0.02 || (seeked && delta > 0.35);
     if (jumped) {
       // A seek has no reliable previous-frame motion. Do not guess or scan
       // broadly for a lookalike elsewhere on screen.
