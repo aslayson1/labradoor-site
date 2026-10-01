@@ -91,6 +91,7 @@
   let gesture = null;
   let protectionStyle = 'blur';
   let busy = false;
+  let activeProcessingMode = '';
   let runVersion = 0;
   let animationFrame = 0;
   let animationFrameKind = '';
@@ -239,6 +240,7 @@
     corrections = [];
     selectedCorrectionId = null;
     busy = false;
+    activeProcessingMode = '';
     gesture = null;
     previewTrackers.clear();
     processButton.disabled = false;
@@ -565,6 +567,7 @@
           dx: expectedMotion.dx * trackingScale,
           dy: expectedMotion.dy * trackingScale,
         },
+        elapsedSeconds: delta,
       },
     );
     return {
@@ -1463,7 +1466,19 @@
   }
 
   function updateJobProgress(record) {
-    const label = statusLabels[record.status] || 'Processing video';
+    const manualLabels = {
+      queued: 'Preparing manual render',
+      analyzing: 'Following selected masks',
+      redacting: 'Rendering manual masks',
+      verifying: 'Verifying masked video',
+      needs_review: 'Manual review required',
+      complete: 'Manual masking verified',
+      failed: 'Processing stopped',
+      cancelled: 'Processing cancelled',
+    };
+    const labels =
+      activeProcessingMode === 'manual' ? manualLabels : statusLabels;
+    const label = labels[record.status] || 'Processing video';
     const currentFrame = Number(record.progress_current);
     const totalFramesForStage = Number(record.progress_total);
     const hasFrameProgress =
@@ -1484,7 +1499,9 @@
     setJobStatus(
       label,
       record.status === 'queued'
-        ? 'The GPU worker may need a moment to start.'
+        ? activeProcessingMode === 'manual'
+          ? 'Automatic detection is off. The private worker is only preparing the final manual render.'
+          : 'The GPU worker may need a moment to start.'
         : frameDetail
         ? `${frameDetail} · ${percent}%`
         : `Job ${record.id.slice(0, 8)} · ${percent}%`,
@@ -1693,6 +1710,7 @@
     correctionSection.hidden = true;
     renderCorrections();
     const version = ++runVersion;
+    activeProcessingMode = 'automatic';
     setBusy(true);
     showProgress(2, 'Preparing secure upload…');
     setJobStatus('Preparing video', 'The original will upload directly to the private worker.');
@@ -1833,11 +1851,12 @@
     totalFrames = 0;
     reviewSection.hidden = true;
     const version = ++runVersion;
+    activeProcessingMode = 'manual';
     setBusy(true);
-    showProgress(2, 'Preparing manual tracking…');
+    showProgress(2, 'Preparing manual render…');
     setJobStatus(
-      'Preparing tracked masks',
-      'The worker will follow each selected region from its anchor frame forward.',
+      'Preparing manual masks',
+      'Automatic detection is off. The browser previews tracking; the private worker renders and verifies the masks you selected.',
     );
 
     try {
@@ -1847,7 +1866,7 @@
         throw new Error('The private worker did not pause for manual masks');
       }
 
-      showProgress(14, 'Starting motion tracking…');
+      showProgress(14, 'Applying manual mask tracking…');
       const response = await apiFetch(
         `/v1/jobs/${encodeURIComponent(currentJob.id)}/timed-corrections`,
         {
@@ -1892,6 +1911,7 @@
   applyCorrections.addEventListener('click', async () => {
     if (!currentJob || corrections.length === 0 || busy) return;
     const version = ++runVersion;
+    activeProcessingMode = 'manual';
     setBusy(true);
     resetOutput();
     showProgress(4, 'Sending exact frame corrections…');

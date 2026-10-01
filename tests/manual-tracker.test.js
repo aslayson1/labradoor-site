@@ -95,7 +95,13 @@ test('frame-to-frame tracking follows a scrolling address instead of the button 
       box,
       recentTemplate,
       anchorTemplate,
-      { expectedMotion: motion },
+      {
+        expectedMotion: motion,
+        elapsedSeconds: 1 / 60,
+        minimumRecentCorrelation: 0.54,
+        minimumAnchorCorrelation: 0.70,
+        minimumCombinedScore: 0.60,
+      },
     );
 
     assert.equal(
@@ -137,6 +143,9 @@ test('tracking stays with one of two nearby moving text rows', () => {
   const match = tracker.findBestMatch(next, box, recent, anchor, {
     expectedMotion: { dx: 2, dy: -6 },
     occupied: [{ x1: 48, y1: 118, x2: 181, y2: 151 }],
+    minimumRecentCorrelation: 0.54,
+    minimumAnchorCorrelation: 0.70,
+    minimumCombinedScore: 0.60,
   });
 
   assert.equal(
@@ -229,4 +238,42 @@ test('different text appearing near the old location cannot inherit the mask', (
     match.anchorCorrelation < 0.74,
     `replacement anchor correlation too high: ${JSON.stringify(match)}`,
   );
+});
+
+
+test('fast 60fps UI motion remains reachable even when a browser callback is skipped', () => {
+  const first = makeFrame(320, 260);
+  drawTextLikeRow(first, 72, 142, 0);
+  const box = { x1: 66, y1: 132, x2: 198, y2: 166 };
+  const anchor = tracker.makeTemplate(first, box, {
+    paddingRatio: 0.08,
+    cols: 19,
+    rows: 11,
+  });
+  const recent = tracker.makeTemplate(first, box, {
+    paddingRatio: 0.20,
+    cols: 17,
+    rows: 11,
+  });
+
+  const next = makeFrame(320, 260);
+  // Models roughly two skipped 60fps source frames during the fast sheet
+  // animation in the uploaded Labradoor recording.
+  drawTextLikeRow(next, 72, 54, 0);
+
+  const match = tracker.findBestMatch(next, box, recent, anchor, {
+    expectedMotion: { dx: 0, dy: -44 },
+    elapsedSeconds: 3 / 60,
+    minimumRecentCorrelation: 0.54,
+    minimumAnchorCorrelation: 0.70,
+    minimumCombinedScore: 0.60,
+  });
+
+  assert.equal(
+    match.strong,
+    true,
+    `fast jump should remain trackable: ${JSON.stringify(match)}`,
+  );
+  assert.ok(match.searchRadiusY >= 120);
+  assert.ok(Math.abs(match.box.y1 - 44) <= 4);
 });

@@ -391,6 +391,10 @@
   function findBestMatch(frame, currentBox, recentTemplate, anchorTemplate, options = {}) {
     const occupied = Array.isArray(options.occupied) ? options.occupied : [];
     const expectedMotion = options.expectedMotion || { dx: 0, dy: 0 };
+    const elapsedSeconds = Math.max(
+      1 / 240,
+      Number(options.elapsedSeconds) || 1 / 60,
+    );
     const width = currentBox.x2 - currentBox.x1;
     const height = currentBox.y2 - currentBox.y1;
     const predicted = translate(
@@ -416,10 +420,9 @@
       motionMagnitude >= 0.8 &&
       predictedVisibleFraction + 0.04 < currentVisibleFraction;
 
-    // Once a confirmed target begins crossing a frame edge, stop searching
-    // for replacement content. Carry the box along the established motion
-    // vector while any part is still visible, then end the occurrence only
-    // after it has completely left the frame.
+    // Once the confirmed target begins crossing a frame edge, never search
+    // for a substitute. Carry the box along its established motion until the
+    // last visible part has left the frame.
     if (movingOutward && predictedVisibleFraction < 0.98) {
       const exitedFrame = predictedVisibleFraction <= 0.01;
       return {
@@ -427,8 +430,8 @@
         score: exitedFrame ? 0 : 1,
         recentScore: exitedFrame ? 0 : 1,
         anchorScore: exitedFrame ? 0 : 1,
+        recentCorrelation: exitedFrame ? -1 : 1,
         anchorCorrelation: exitedFrame ? -1 : 1,
-        identityScore: exitedFrame ? 0 : 1,
         strong: !exitedFrame,
         exitingFrame: !exitedFrame,
         exitedFrame,
@@ -438,14 +441,46 @@
       };
     }
 
-    const xRadius = Math.max(
-      10,
-      Math.min(30, width * 0.22 + Math.abs(expectedMotion.dx || 0) * 0.8),
-    );
-    const yRadius = Math.max(
-      16,
-      Math.min(46, height * 1.55 + Math.abs(expectedMotion.dy || 0) * 0.8),
-    );
+    const fastSearch =
+      elapsedSeconds > 0.024 ||
+      Math.abs(expectedMotion.dx || 0) > width * 0.22 ||
+      Math.abs(expectedMotion.dy || 0) > height * 0.75;
+
+    // Keep ordinary motion tightly local. Only expand when elapsed media time
+    // or the established velocity says that one or more source frames may
+    // have been skipped.
+    const skippedFrameAllowance = Math.max(
+      0,
+      elapsedSeconds - 1 / 60,
+    ) * 3400;
+    const xRadius = fastSearch
+      ? Math.max(
+          46,
+          Math.min(
+            150,
+            width * 0.28 +
+              Math.abs(expectedMotion.dx || 0) * 1.25 +
+              skippedFrameAllowance,
+          ),
+        )
+      : Math.max(
+          10,
+          Math.min(30, width * 0.22 + Math.abs(expectedMotion.dx || 0) * 0.8),
+        );
+    const yRadius = fastSearch
+      ? Math.max(
+          82,
+          Math.min(
+            190,
+            height * 2.0 +
+              Math.abs(expectedMotion.dy || 0) * 1.35 +
+              skippedFrameAllowance,
+          ),
+        )
+      : Math.max(
+          16,
+          Math.min(46, height * 1.55 + Math.abs(expectedMotion.dy || 0) * 0.8),
+        );
 
     const minX = Math.max(0, Math.floor(predicted.x1 - xRadius));
     const maxX = Math.min(
@@ -460,19 +495,12 @@
 
     function evaluate(x, y) {
       const candidate = { x1: x, y1: y, x2: x + width, y2: y + height };
-      const recentScore = scoreTemplate(frame, candidate, recentTemplate);
-      const anchorScore = scoreTemplate(frame, candidate, anchorTemplate);
+      const recentCorrelation = scoreCorrelation(
+        frame,
+        candidate,
+        recentTemplate,
+      );
       const anchorCorrelation = scoreCorrelation(
-        frame,
-        candidate,
-        anchorTemplate,
-      );
-      const identityScore = scoreIdentityEdges(
-        frame,
-        candidate,
-        anchorTemplate,
-      );
-      const fingerprintScore = scoreFingerprint(
         frame,
         candidate,
         anchorTemplate,
@@ -481,16 +509,48 @@
         candidate.x1 - predicted.x1,
         candidate.y1 - predicted.y1,
       );
-      const scale = Math.max(28, height * 2.4, width * 0.45);
+      const scale = Math.max(34, height * 2.8, width * 0.5);
       const continuityPenalty = Math.min(
-        0.16,
-        (predictionDistance / scale) * 0.13,
+        fastSearch ? 0.10 : 0.16,
+        (predictionDistance / scale) * (fastSearch ? 0.08 : 0.13),
       );
       const overlap = occupied.reduce(
         (maximum, box) => Math.max(maximum, boxIoU(candidate, box)),
         0,
       );
-      const collisionPenalty = overlap >= 0.55 ? 0.55 : overlap >= 0.2 ? 0.26 : 0;
+      const collisionPenalty =
+        overlap >= 0.55 ? 0.60 : overlap >= 0.2 ? 0.30 : 0;
+
+      if (fastSearch) {
+        // On skipped/high-motion frames, correlation-only matching is both
+        // faster and more tolerant of the large translation. The original
+        // anchor remains half of the score so nearby lookalikes cannot take
+        // over simply because they resemble the immediately previous frame.
+        const score =
+          recentCorrelation * 0.50 +
+          anchorCorrelation * 0.50 -
+          continuityPenalty -
+          collisionPenalty;
+        return {
+          box: candidate,
+          score,
+          recentScore: recentCorrelation,
+          anchorScore: anchorCorrelation,
+          recentCorrelation,
+          anchorCorrelation,
+          identityScore: 1,
+          fastSearch: true,
+        };
+      }
+
+      // Preserve the more discriminating edge-aware score for ordinary
+      // frame-to-frame movement; it already handles nearby text well.
+      const recentScore = scoreTemplate(frame, candidate, recentTemplate);
+      const identityScore = scoreIdentityEdges(
+        frame,
+        candidate,
+        anchorTemplate,
+      );
       const score =
         recentScore * 0.42 +
         Math.max(0, anchorCorrelation) * 0.48 +
@@ -501,15 +561,19 @@
         box: candidate,
         score,
         recentScore,
-        anchorScore,
+        anchorScore: anchorCorrelation,
+        recentCorrelation,
         anchorCorrelation,
         identityScore,
-        fingerprintScore,
+        fastSearch: false,
       };
     }
 
     let best = evaluate(predicted.x1, predicted.y1);
-    const coarseStep = Math.max(2, Number(options.coarseStep) || 3);
+    const coarseStep = Math.max(
+      4,
+      Number(options.coarseStep) || (elapsedSeconds > 0.03 ? 6 : 5),
+    );
 
     for (let y = minY; y <= maxY; y += coarseStep) {
       for (let x = minX; x <= maxX; x += coarseStep) {
@@ -518,7 +582,7 @@
       }
     }
 
-    const refine = 4;
+    const refine = 5;
     const refineMinX = Math.max(minX, Math.floor(best.box.x1 - refine));
     const refineMaxX = Math.min(maxX, Math.ceil(best.box.x1 + refine));
     const refineMinY = Math.max(minY, Math.floor(best.box.y1 - refine));
@@ -530,11 +594,16 @@
       }
     }
 
-    const strong =
-      best.recentScore >= (options.minimumRecentScore || 0.56) &&
-      best.anchorCorrelation >=
-        (options.minimumAnchorCorrelation || 0.74) &&
-      best.score >= (options.minimumCombinedScore || 0.55);
+    const strong = best.fastSearch
+      ? best.recentCorrelation >=
+          (options.minimumRecentCorrelation || 0.62) &&
+        best.anchorCorrelation >=
+          (options.minimumAnchorCorrelation || 0.72) &&
+        best.score >= (options.minimumCombinedScore || 0.62)
+      : best.recentScore >= (options.minimumRecentScore || 0.56) &&
+        best.anchorCorrelation >=
+          (options.minimumAnchorCorrelation || 0.74) &&
+        best.score >= (options.minimumCombinedScore || 0.55);
 
     return {
       ...best,
@@ -547,6 +616,8 @@
         best.box.x1 - currentBox.x1,
         best.box.y1 - currentBox.y1,
       ),
+      searchRadiusX: xRadius,
+      searchRadiusY: yRadius,
     };
   }
 
