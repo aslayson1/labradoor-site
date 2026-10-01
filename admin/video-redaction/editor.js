@@ -568,8 +568,7 @@
           dy: expectedMotion.dy * trackingScale,
         },
         elapsedSeconds: delta,
-        minimumAnchorCorrelation:
-          tracker.confirmedFrames >= 3 ? 0.60 : 0.74,
+        minimumDenseIdentity: 0.70,
       },
     );
     return {
@@ -593,7 +592,6 @@
       lastDelta: 0,
       confidence: 1,
       mismatchFrames: 0,
-      confirmedFrames: 0,
       lost: false,
       hasMotion: false,
       motionX: 0,
@@ -695,7 +693,6 @@
         );
         tracker.recentTemplate =
           makeRecentTemplate(tracker.box) || tracker.recentTemplate;
-        tracker.confirmedFrames += 1;
         tracker.mismatchFrames = 0;
       } else {
         // Never move on an uncertain match. Keep the last confirmed box for
