@@ -271,6 +271,40 @@
       );
   }
 
+  function scoreDenseCorrelation(frame, box, template) {
+    const samples = template?.fingerprint || [];
+    if (!samples.length) return -1;
+
+    const values = new Array(samples.length);
+    let candidateSum = 0;
+    for (let index = 0; index < samples.length; index += 1) {
+      const sample = samples[index];
+      const x = box.x1 + sample.fx * (box.x2 - box.x1);
+      const y = box.y1 + sample.fy * (box.y2 - box.y1);
+      if (x < 0 || y < 0 || x >= frame.width || y >= frame.height) {
+        return -1;
+      }
+      const value = grayAt(frame, x, y);
+      values[index] = value;
+      candidateSum += value;
+    }
+
+    const candidateMean = candidateSum / values.length;
+    let covariance = 0;
+    let templateVariance = 0;
+    let candidateVariance = 0;
+    for (let index = 0; index < samples.length; index += 1) {
+      const a = samples[index].value - template.fingerprintMean;
+      const b = values[index] - candidateMean;
+      covariance += a * b;
+      templateVariance += a * a;
+      candidateVariance += b * b;
+    }
+
+    return covariance /
+      Math.max(1, Math.sqrt(templateVariance * candidateVariance));
+  }
+
   function scoreIdentityEdges(frame, box, template) {
     const samples = template?.identitySamples || [];
     if (!samples.length) return 0;
@@ -402,6 +436,7 @@
       Number(expectedMotion.dx) || 0,
       Number(expectedMotion.dy) || 0,
     );
+
     const predictedVisibleFraction = visibleFraction(
       predicted,
       frame.width,
@@ -420,18 +455,16 @@
       motionMagnitude >= 0.8 &&
       predictedVisibleFraction + 0.04 < currentVisibleFraction;
 
-    // Once the confirmed target begins crossing a frame edge, never search
-    // for a substitute. Carry the box along its established motion until the
-    // last visible part has left the frame.
     if (movingOutward && predictedVisibleFraction < 0.98) {
       const exitedFrame = predictedVisibleFraction <= 0.01;
       return {
         box: predicted,
         score: exitedFrame ? 0 : 1,
-        recentScore: exitedFrame ? 0 : 1,
-        anchorScore: exitedFrame ? 0 : 1,
+        recentScore: exitedFrame ? -1 : 1,
+        anchorScore: exitedFrame ? -1 : 1,
         recentCorrelation: exitedFrame ? -1 : 1,
         anchorCorrelation: exitedFrame ? -1 : 1,
+        denseAnchorCorrelation: exitedFrame ? -1 : 1,
         strong: !exitedFrame,
         exitingFrame: !exitedFrame,
         exitedFrame,
@@ -446,9 +479,6 @@
       Math.abs(expectedMotion.dx || 0) > width * 0.22 ||
       Math.abs(expectedMotion.dy || 0) > height * 0.75;
 
-    // Keep ordinary motion tightly local. Only expand when elapsed media time
-    // or the established velocity says that one or more source frames may
-    // have been skipped.
     const skippedFrameAllowance = Math.max(
       0,
       elapsedSeconds - 1 / 60,
@@ -494,26 +524,33 @@
     );
 
     function evaluate(x, y) {
-      const candidate = { x1: x, y1: y, x2: x + width, y2: y + height };
-      const recentCorrelation = scoreCorrelation(
+      const candidate = {
+        x1: x,
+        y1: y,
+        x2: x + width,
+        y2: y + height,
+      };
+      const recentCorrelation = scoreDenseCorrelation(
         frame,
         candidate,
         recentTemplate,
       );
-      const anchorCorrelation = scoreCorrelation(
+      const anchorCorrelation = scoreDenseCorrelation(
         frame,
         candidate,
         anchorTemplate,
       );
+
       const predictionDistance = Math.hypot(
         candidate.x1 - predicted.x1,
         candidate.y1 - predicted.y1,
       );
       const scale = Math.max(34, height * 2.8, width * 0.5);
       const continuityPenalty = Math.min(
-        fastSearch ? 0.10 : 0.16,
-        (predictionDistance / scale) * (fastSearch ? 0.08 : 0.13),
+        fastSearch ? 0.08 : 0.12,
+        (predictionDistance / scale) * (fastSearch ? 0.05 : 0.08),
       );
+
       const overlap = occupied.reduce(
         (maximum, box) => Math.max(maximum, boxIoU(candidate, box)),
         0,
@@ -521,58 +558,27 @@
       const collisionPenalty =
         overlap >= 0.55 ? 0.60 : overlap >= 0.2 ? 0.30 : 0;
 
-      if (fastSearch) {
-        // On skipped/high-motion frames, correlation-only matching is both
-        // faster and more tolerant of the large translation. The original
-        // anchor remains half of the score so nearby lookalikes cannot take
-        // over simply because they resemble the immediately previous frame.
-        const score =
-          recentCorrelation * 0.50 +
-          anchorCorrelation * 0.50 -
-          continuityPenalty -
-          collisionPenalty;
-        return {
-          box: candidate,
-          score,
-          recentScore: recentCorrelation,
-          anchorScore: anchorCorrelation,
-          recentCorrelation,
-          anchorCorrelation,
-          identityScore: 1,
-          fastSearch: true,
-        };
-      }
-
-      // Preserve the more discriminating edge-aware score for ordinary
-      // frame-to-frame movement; it already handles nearby text well.
-      const recentScore = scoreTemplate(frame, candidate, recentTemplate);
-      const identityScore = scoreIdentityEdges(
-        frame,
-        candidate,
-        anchorTemplate,
-      );
       const score =
-        recentScore * 0.42 +
-        Math.max(0, anchorCorrelation) * 0.48 +
-        identityScore * 0.10 -
+        recentCorrelation * 0.70 +
+        anchorCorrelation * 0.30 -
         continuityPenalty -
         collisionPenalty;
+
       return {
         box: candidate,
         score,
-        recentScore,
+        recentScore: recentCorrelation,
         anchorScore: anchorCorrelation,
         recentCorrelation,
         anchorCorrelation,
-        identityScore,
-        fastSearch: false,
+        denseAnchorCorrelation: anchorCorrelation,
       };
     }
 
     let best = evaluate(predicted.x1, predicted.y1);
     const coarseStep = Math.max(
-      4,
-      Number(options.coarseStep) || (elapsedSeconds > 0.03 ? 6 : 5),
+      3,
+      Number(options.coarseStep) || (fastSearch ? 5 : 3),
     );
 
     for (let y = minY; y <= maxY; y += coarseStep) {
@@ -594,16 +600,13 @@
       }
     }
 
-    const strong = best.fastSearch
-      ? best.recentCorrelation >=
-          (options.minimumRecentCorrelation || 0.62) &&
-        best.anchorCorrelation >=
-          (options.minimumAnchorCorrelation || 0.72) &&
-        best.score >= (options.minimumCombinedScore || 0.62)
-      : best.recentScore >= (options.minimumRecentScore || 0.56) &&
-        best.anchorCorrelation >=
-          (options.minimumAnchorCorrelation || 0.74) &&
-        best.score >= (options.minimumCombinedScore || 0.55);
+    const strong =
+      best.recentCorrelation >=
+        (options.minimumRecentCorrelation || 0.70) &&
+      best.anchorCorrelation >=
+        (options.minimumAnchorCorrelation || 0.82) &&
+      best.score >=
+        (options.minimumCombinedScore || 0.60);
 
     return {
       ...best,
@@ -628,6 +631,7 @@
     makeTemplate,
     scoreTemplate,
     scoreCorrelation,
+    scoreDenseCorrelation,
     scoreIdentityEdges,
     scoreFingerprint,
     visibleFraction,
