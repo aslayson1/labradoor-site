@@ -578,8 +578,10 @@
     const current = tracker.box;
     const width = current.x2 - current.x1;
     const height = current.y2 - current.y1;
-    const xRadius = Math.max(18, Math.min(72, width * 0.9));
-    const yRadius = Math.max(42, Math.min(180, height * 5));
+    // Stay close to this occurrence. A broad search can jump to similar
+    // text (or a neighboring mask) when the selected text disappears.
+    const xRadius = Math.max(14, Math.min(40, width * 0.5));
+    const yRadius = Math.max(28, Math.min(72, height * 3));
 
     const searchX1 = Math.max(0, Math.floor(current.x1 - xRadius));
     const searchY1 = Math.max(0, Math.floor(current.y1 - yRadius));
@@ -649,10 +651,27 @@
       }
     }
 
-    return {
-      box: clampPreviewBox(best.box),
-      score: best.score,
-    };
+    const currentScore =
+      candidateCorrelation(
+        searchImage,
+        { x: searchX1, y: searchY1 },
+        current,
+        tracker.template,
+      ) - candidateStabilityPenalty(current, current, occupied);
+    const movement = Math.hypot(
+      best.box.x1 - current.x1,
+      best.box.y1 - current.y1,
+    );
+    // A tiny gain is sampling noise. Keep the hand-placed geometry steady
+    // until there is convincing motion; never teleport to a distant match.
+    if (
+      best.score < currentScore + 0.035 ||
+      movement < 2 ||
+      movement > Math.max(28, Math.min(76, height * 3.5))
+    ) {
+      return { box: current, score: currentScore };
+    }
+    return { box: clampPreviewBox(best.box), score: best.score };
   }
 
   function previewBoxFor(item, now) {
@@ -684,11 +703,15 @@
     }
 
     if (atAnchor) {
-      tracker.box = { ...item.box };
-      tracker.lastTime = now;
-      tracker.confidence = 1;
-      tracker.mismatchFrames = 0;
-      tracker.lost = false;
+      // Reset only after a seek back to the anchor, not on every animation
+      // frame in the anchor window. Repeated resets look like bouncing.
+      if (now < tracker.lastTime - 0.03) {
+        tracker.box = { ...item.box };
+        tracker.lastTime = now;
+        tracker.confidence = 1;
+        tracker.mismatchFrames = 0;
+        tracker.lost = false;
+      }
       return tracker.box;
     }
 
@@ -893,26 +916,67 @@
       });
   }
 
+  function beginMaskEdit() {
+    if (!gesture || gesture.started || gesture.mode === 'draw') return;
+    const item = gesture.item;
+    const now = gesture.atTime;
+    // A tracked mask's original anchor belongs to earlier frames. Editing
+    // its current location makes a new anchor from this frame onward.
+    if (
+      item.trackingMode === 'forward' &&
+      now > item.startSeconds + frameDuration() * 1.5 &&
+      now <= item.endSeconds
+    ) {
+      const continuation = {
+        ...item,
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
+        startSeconds: now,
+        box: { ...gesture.displayBox },
+      };
+      item.endSeconds = Math.max(item.startSeconds, now - frameDuration());
+      corrections.splice(corrections.indexOf(item) + 1, 0, continuation);
+      gesture.item = continuation;
+      selectedCorrectionId = continuation.id;
+      previewTrackers.delete(item.id);
+    }
+    gesture.started = true;
+    previewTrackers.delete(gesture.item.id);
+    renderCorrections();
+  }
+
   display.addEventListener('pointerdown', (event) => {
     if (busy || !sourceFile) return;
+    source.pause();
+    drawFrame();
     const point = canvasPoint(event);
     const selected = selectedCorrection();
+    const selectedBox = selected && visibleAt(selected, source.currentTime)
+      ? previewBoxFor(selected, source.currentTime)
+      : null;
     const handleSize = Math.max(18, display.width / 55);
 
     if (
-      selected &&
-      Math.hypot(point.x - selected.box.x2, point.y - selected.box.y2) <= handleSize
+      selected && selectedBox &&
+      Math.hypot(point.x - selectedBox.x2, point.y - selectedBox.y2) <= handleSize
     ) {
-      gesture = { mode: 'resize', item: selected };
+      gesture = {
+        mode: 'resize',
+        item: selected,
+        displayBox: { ...selectedBox },
+        atTime: source.currentTime,
+      };
     } else {
       const hit = correctionAt(point);
       if (hit) {
+        const box = previewBoxFor(hit, source.currentTime) || hit.box;
         selectedCorrectionId = hit.id;
         gesture = {
           mode: 'move',
           item: hit,
-          offsetX: point.x - hit.box.x1,
-          offsetY: point.y - hit.box.y1,
+          displayBox: { ...box },
+          atTime: source.currentTime,
+          offsetX: point.x - box.x1,
+          offsetY: point.y - box.y1,
         };
       } else {
         selectedCorrectionId = null;
@@ -937,18 +1001,31 @@
     if (gesture.mode === 'draw') {
       gesture.currentX = point.x;
       gesture.currentY = point.y;
-    } else if (gesture.mode === 'move') {
+    } else {
+      const box = gesture.displayBox;
+      const movement = gesture.mode === 'move'
+        ? Math.hypot(
+          point.x - gesture.offsetX - box.x1,
+          point.y - gesture.offsetY - box.y1,
+        )
+        : Math.hypot(point.x - box.x2, point.y - box.y2);
+      if (!gesture.started && movement >= 2) beginMaskEdit();
+      if (!gesture.started) return;
+
       const item = gesture.item;
-      const width = item.box.x2 - item.box.x1;
-      const height = item.box.y2 - item.box.y1;
-      const x1 = Math.max(0, Math.min(display.width - width, point.x - gesture.offsetX));
-      const y1 = Math.max(0, Math.min(display.height - height, point.y - gesture.offsetY));
-      item.box = { x1, y1, x2: x1 + width, y2: y1 + height };
-      previewTrackers.delete(item.id);
-    } else if (gesture.mode === 'resize') {
-      const item = gesture.item;
-      item.box.x2 = Math.max(item.box.x1 + 4, Math.min(display.width, point.x));
-      item.box.y2 = Math.max(item.box.y1 + 4, Math.min(display.height, point.y));
+      if (gesture.mode === 'move') {
+        const width = box.x2 - box.x1;
+        const height = box.y2 - box.y1;
+        const x1 = Math.max(0, Math.min(display.width - width, point.x - gesture.offsetX));
+        const y1 = Math.max(0, Math.min(display.height - height, point.y - gesture.offsetY));
+        item.box = { x1, y1, x2: x1 + width, y2: y1 + height };
+      } else {
+        item.box = {
+          ...item.box,
+          x2: Math.max(item.box.x1 + 4, Math.min(display.width, point.x)),
+          y2: Math.max(item.box.y1 + 4, Math.min(display.height, point.y)),
+        };
+      }
       previewTrackers.delete(item.id);
     }
 
@@ -1068,6 +1145,8 @@
       edit.textContent = item.id === selectedCorrectionId ? 'Selected' : 'Edit box';
       edit.addEventListener('click', () => {
         selectedCorrectionId = item.id;
+        source.pause();
+        previewTrackers.delete(item.id);
         source.currentTime =
           item.trackingMode === 'forward'
             ? item.startSeconds
