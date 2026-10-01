@@ -416,18 +416,22 @@
       motionMagnitude >= 0.8 &&
       predictedVisibleFraction + 0.04 < currentVisibleFraction;
 
-    // Never pin a tracked box to the screen edge. If the motion model says
-    // the selected text is leaving the visible frame, allow the occurrence
-    // to end instead of forcing a replacement match somewhere on-screen.
-    if (movingOutward && predictedVisibleFraction < 0.58) {
+    // Once a confirmed target begins crossing a frame edge, stop searching
+    // for replacement content. Carry the box along the established motion
+    // vector while any part is still visible, then end the occurrence only
+    // after it has completely left the frame.
+    if (movingOutward && predictedVisibleFraction < 0.98) {
+      const exitedFrame = predictedVisibleFraction <= 0.01;
       return {
         box: predicted,
-        score: 0,
-        recentScore: 0,
-        anchorScore: 0,
-        identityScore: 0,
-        strong: false,
-        exitedFrame: true,
+        score: exitedFrame ? 0 : 1,
+        recentScore: exitedFrame ? 0 : 1,
+        anchorScore: exitedFrame ? 0 : 1,
+        anchorCorrelation: exitedFrame ? -1 : 1,
+        identityScore: exitedFrame ? 0 : 1,
+        strong: !exitedFrame,
+        exitingFrame: !exitedFrame,
+        exitedFrame,
         predicted,
         predictedVisibleFraction,
         movement: motionMagnitude,
@@ -535,6 +539,7 @@
     return {
       ...best,
       strong,
+      exitingFrame: false,
       exitedFrame: false,
       predicted,
       predictedVisibleFraction,
