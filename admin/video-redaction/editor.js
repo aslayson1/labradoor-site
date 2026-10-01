@@ -91,6 +91,7 @@
   let gesture = null;
   let protectionStyle = 'blur';
   let busy = false;
+  let processingMode = 'idle';
   let runVersion = 0;
   let animationFrame = 0;
   let animationFrameKind = '';
@@ -1463,7 +1464,20 @@
   }
 
   function updateJobProgress(record) {
-    const label = statusLabels[record.status] || 'Processing video';
+    const manualLabels = {
+      queued: 'Final render starting',
+      ready: 'Manual masks ready',
+      analyzing: 'Tracking selected masks',
+      redacting: 'Rendering selected masks',
+      verifying: 'Verifying protected video',
+      needs_review: 'Manual review required',
+      complete: 'Independent verification passed',
+      failed: 'Processing stopped',
+      cancelled: 'Processing cancelled',
+    };
+    const labels =
+      processingMode === 'manual' ? manualLabels : statusLabels;
+    const label = labels[record.status] || 'Processing video';
     const currentFrame = Number(record.progress_current);
     const totalFramesForStage = Number(record.progress_total);
     const hasFrameProgress =
@@ -1484,7 +1498,9 @@
     setJobStatus(
       label,
       record.status === 'queued'
-        ? 'The GPU worker may need a moment to start.'
+        ? processingMode === 'manual'
+          ? 'Automatic detection is off. The private worker is only rendering and verifying your manual masks.'
+          : 'The GPU worker may need a moment to start.'
         : frameDetail
         ? `${frameDetail} · ${percent}%`
         : `Job ${record.id.slice(0, 8)} · ${percent}%`,
@@ -1684,6 +1700,7 @@
       return;
     }
 
+    processingMode = 'automatic';
     resetOutput();
     currentReview = null;
     totalFrames = 0;
@@ -1828,16 +1845,17 @@
       return;
     }
 
+    processingMode = 'manual';
     resetOutput();
     currentReview = null;
     totalFrames = 0;
     reviewSection.hidden = true;
     const version = ++runVersion;
     setBusy(true);
-    showProgress(2, 'Preparing manual tracking…');
+    showProgress(2, 'Preparing final render…');
     setJobStatus(
-      'Preparing tracked masks',
-      'The worker will follow each selected region from its anchor frame forward.',
+      'Preparing final render',
+      'Automatic detection is off. Your manual masks are being sent to the private worker for final tracking, rendering, and verification.',
     );
 
     try {
@@ -1847,7 +1865,7 @@
         throw new Error('The private worker did not pause for manual masks');
       }
 
-      showProgress(14, 'Starting motion tracking…');
+      showProgress(14, 'Starting final mask render…');
       const response = await apiFetch(
         `/v1/jobs/${encodeURIComponent(currentJob.id)}/timed-corrections`,
         {
