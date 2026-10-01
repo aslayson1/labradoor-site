@@ -317,3 +317,30 @@ test('fast search retains fractional glyph sampling after a skipped scrolling fr
   assert.ok(Math.abs(match.box.x1 - (box.x1 + 24)) < 0.01);
   assert.ok(Math.abs(match.box.y1 - (box.y1 - 70)) < 0.01);
 });
+
+test('cached dense search preserves RGB sampling across translations and phases', () => {
+  const first = makeFrame(120, 100);
+  const next = makeFrame(120, 100);
+  for (let i = 0; i < first.data.length; i += 4) {
+    first.data[i] = (i * 13) % 251;
+    first.data[i + 1] = (i * 7) % 241;
+    first.data[i + 2] = (i * 17) % 239;
+    next.data[i] = (i * 19) % 251;
+    next.data[i + 1] = (i * 11) % 241;
+    next.data[i + 2] = (i * 3) % 239;
+  }
+  const anchorBox = {x1: 20.333, y1: 25.667, x2: 80.333, y2: 55.667};
+  const template = tracker.makeTemplate(first, anchorBox);
+  for (const [dx, dy] of [[0, 0], [5, -7], [0.25, 0.125], [11, 13]]) {
+    const box = {x1: anchorBox.x1 + dx, y1: anchorBox.y1 + dy, x2: anchorBox.x2 + dx, y2: anchorBox.y2 + dy};
+    const values = template.fingerprint.map(sample => tracker.grayAt(next,
+      box.x1 + sample.fx * (box.x2 - box.x1 - 1),
+      box.y1 + sample.fy * (box.y2 - box.y1 - 1)));
+    const sum = values.reduce((total, value) => total + value, 0);
+    const variance = values.reduce((total, value) => total + value * value, 0) - sum * sum / values.length;
+    const covariance = values.reduce((total, value, i) => total + (template.fingerprint[i].value - template.fingerprintMean) * value, 0);
+    const templateVariance = template.fingerprint.reduce((total, sample) => total + (sample.value - template.fingerprintMean) ** 2, 0);
+    const expected = covariance / Math.max(1, Math.sqrt(variance * templateVariance));
+    assert.ok(Math.abs(tracker.scoreDenseCorrelation(next, box, template) - expected) < 1e-6);
+  }
+});

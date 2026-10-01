@@ -277,6 +277,48 @@
       );
   }
 
+  const frameLumaCache = new WeakMap();
+  const denseSamplerCache = new WeakMap();
+
+  function frameLuma(frame) {
+    let luma = frameLumaCache.get(frame);
+    if (luma) return luma;
+    luma = new Float32Array(frame.width * frame.height);
+    for (let pixel = 0; pixel < luma.length; pixel += 1) {
+      const offset = pixel * 4;
+      luma[pixel] = frame.data[offset] * 0.299 + frame.data[offset + 1] * 0.587 + frame.data[offset + 2] * 0.114;
+    }
+    frameLumaCache.set(frame, luma);
+    return luma;
+  }
+
+  function denseSampler(template, box, frameWidth) {
+    const phaseX = box.x1 - Math.floor(box.x1);
+    const phaseY = box.y1 - Math.floor(box.y1);
+    const width = Math.max(1, box.x2 - box.x1 - 1);
+    const height = Math.max(1, box.y2 - box.y1 - 1);
+    const cached = denseSamplerCache.get(template);
+    if (cached && cached.phaseX === phaseX && cached.phaseY === phaseY && cached.width === width && cached.height === height && cached.frameWidth === frameWidth) return cached;
+    const samples = template.fingerprint;
+    const offsets = new Int32Array(samples.length);
+    const centered = new Float64Array(samples.length);
+    let variance = 0;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let i = 0; i < samples.length; i += 1) {
+      const sample = samples[i];
+      const x = Math.round(phaseX + sample.fx * width);
+      const y = Math.round(phaseY + sample.fy * height);
+      offsets[i] = y * frameWidth + x;
+      centered[i] = sample.value - template.fingerprintMean;
+      variance += centered[i] * centered[i];
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    }
+    const sampler = {phaseX, phaseY, width, height, frameWidth, offsets, centered, variance, minX, maxX, minY, maxY};
+    denseSamplerCache.set(template, sampler);
+    return sampler;
+  }
+
   function scoreDenseCorrelation(frame, box, template) {
     const samples = template?.fingerprint || [];
     if (!samples.length) return -1;
@@ -284,23 +326,19 @@
     let sum = 0;
     let squareSum = 0;
     let covariance = 0;
-    let templateVariance = 0;
-    const width = Math.max(1, box.x2 - box.x1 - 1);
-    const height = Math.max(1, box.y2 - box.y1 - 1);
-    for (const sample of samples) {
-      const x = Math.round(box.x1 + sample.fx * width);
-      const y = Math.round(box.y1 + sample.fy * height);
-      if (x < 0 || y < 0 || x >= frame.width || y >= frame.height) return -1;
-      const index = (y * frame.width + x) * 4;
-      const value = frame.data[index] * 0.299 + frame.data[index + 1] * 0.587 + frame.data[index + 2] * 0.114;
-      const centered = sample.value - template.fingerprintMean;
+    const sampler = denseSampler(template, box, frame.width);
+    const x = Math.floor(box.x1), y = Math.floor(box.y1);
+    if (x + sampler.minX < 0 || y + sampler.minY < 0 || x + sampler.maxX >= frame.width || y + sampler.maxY >= frame.height) return -1;
+    const origin = y * frame.width + x;
+    const luma = frameLuma(frame);
+    for (let i = 0; i < samples.length; i += 1) {
+      const value = luma[origin + sampler.offsets[i]];
       sum += value;
       squareSum += value * value;
-      covariance += centered * value;
-      templateVariance += centered * centered;
+      covariance += sampler.centered[i] * value;
     }
     const candidateVariance = Math.max(0, squareSum - sum * sum / samples.length);
-    return covariance / Math.max(1, Math.sqrt(templateVariance * candidateVariance));
+    return covariance / Math.max(1, Math.sqrt(sampler.variance * candidateVariance));
   }
 
   function scoreForegroundEdges(frame, box, template) {
@@ -634,6 +672,29 @@
       }
     }
     if (confirmed(localBest)) return result(localBest);
+
+    // Scrolling panels usually keep their horizontal position. Search that
+    // narrow strip first, with the same full identity checks, so a rapid
+    // vertical movement does not stall playback on a two-dimensional search.
+    if (Math.abs(Number(expectedMotion.dx) || 0) <= 3) {
+      const verticalSeeds = [];
+      const centerX = Math.floor(currentBox.x1);
+      for (let y = minY; y <= maxY; y += 3) {
+        for (let x = Math.max(minX, centerX - 1); x <= Math.min(maxX, centerX + 1); x += 1) {
+          verticalSeeds.push(evaluate(x + phaseX, y + phaseY));
+        }
+      }
+      verticalSeeds.sort((a, b) => b.score - a.score);
+      for (const seed of verticalSeeds.slice(0, 4)) {
+        for (let y = Math.max(minY, Math.floor(seed.box.y1 - 3)); y <= Math.min(maxY, Math.ceil(seed.box.y1 + 3)); y += 1) {
+          for (let x = Math.max(minX, Math.floor(seed.box.x1 - 1)); x <= Math.min(maxX, Math.ceil(seed.box.x1 + 1)); x += 1) {
+            const candidate = evaluate(x + phaseX, y + phaseY);
+            if (candidate.score > localBest.score) localBest = candidate;
+          }
+        }
+      }
+      if (confirmed(localBest)) return result(localBest);
+    }
 
     // Character texture has narrow correlation peaks. A single coarse-grid
     // winner can be an unrelated alias while the real text falls between grid
