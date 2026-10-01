@@ -436,10 +436,9 @@
       );
       const collisionPenalty = overlap >= 0.55 ? 0.55 : overlap >= 0.2 ? 0.26 : 0;
       const score =
-        recentScore * 0.58 +
-        anchorScore * 0.17 +
-        identityScore * 0.10 +
-        fingerprintScore * 0.15 -
+        recentScore * 0.68 +
+        anchorScore * 0.22 +
+        identityScore * 0.10 -
         continuityPenalty -
         collisionPenalty;
       return {
@@ -476,10 +475,9 @@
 
     const strong =
       best.recentScore >= (options.minimumRecentScore || 0.60) &&
-      best.anchorScore >= (options.minimumAnchorScore || 0.50) &&
+      best.anchorScore >= (options.minimumAnchorScore || 0.88) &&
       best.identityScore >= (options.minimumIdentityScore || 0.62) &&
-      best.fingerprintScore >= (options.minimumFingerprintScore || 0.75) &&
-      best.score >= (options.minimumCombinedScore || 0.52);
+      best.score >= (options.minimumCombinedScore || 0.58);
 
     return {
       ...best,
