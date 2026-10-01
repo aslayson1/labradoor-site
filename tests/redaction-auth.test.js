@@ -207,9 +207,12 @@ test('admin editor assets compile and use the server worker', () => {
   assert.match(editor, /anchorTemplate/);
   assert.match(editor, /expectedMotion/);
   assert.match(editor, /motionX/);
-  assert.match(html, /manual-tracker\.js\?v=20261001-real-video-lock/);
+  assert.match(html, /manual-tracker\.js\?v=20261001-ncc-lock/);
   assert.match(editor, /endCorrectionHere/);
   assert.match(html, /End mask before this frame/);
+  assert.match(html, /Render protected video/);
+  assert.match(html, /Automatic text detection stays off/);
+  assert.match(editor, /processingMode === 'manual'/);
   assert.doesNotMatch(editor, /wideSearch/);
   assert.match(editor, /applyPreviewProtection/);
   assert.match(editor, /context\.filter = 'blur\(12px\)'/);
