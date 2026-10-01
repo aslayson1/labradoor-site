@@ -373,8 +373,8 @@
 
     const strong =
       best.recentScore >= (options.minimumRecentScore || 0.60) &&
-      best.anchorScore >= (options.minimumAnchorScore || 0.46) &&
-      best.identityScore >= (options.minimumIdentityScore || 0.56) &&
+      best.anchorScore >= (options.minimumAnchorScore || 0.50) &&
+      best.identityScore >= (options.minimumIdentityScore || 0.72) &&
       best.score >= (options.minimumCombinedScore || 0.52);
 
     return {
