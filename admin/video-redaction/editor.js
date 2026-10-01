@@ -455,29 +455,50 @@
   }
 
   function makePreviewTemplate(box) {
-    const x1 = Math.max(0, Math.floor(box.x1));
-    const y1 = Math.max(0, Math.floor(box.y1));
-    const width = Math.max(4, Math.min(display.width - x1, Math.ceil(box.x2 - box.x1)));
-    const height = Math.max(4, Math.min(display.height - y1, Math.ceil(box.y2 - box.y1)));
+    const boxWidth = Math.max(4, box.x2 - box.x1);
+    const boxHeight = Math.max(4, box.y2 - box.y1);
+    const contextPad = Math.max(
+      4,
+      Math.min(14, Math.round(boxHeight * 0.55)),
+    );
+    const captureX1 = Math.max(0, Math.floor(box.x1 - contextPad));
+    const captureY1 = Math.max(0, Math.floor(box.y1 - contextPad));
+    const captureX2 = Math.min(
+      display.width,
+      Math.ceil(box.x2 + contextPad),
+    );
+    const captureY2 = Math.min(
+      display.height,
+      Math.ceil(box.y2 + contextPad),
+    );
+    const width = Math.max(4, captureX2 - captureX1);
+    const height = Math.max(4, captureY2 - captureY1);
     if (width < 4 || height < 4) return null;
 
     let image;
     try {
-      image = trackingContext.getImageData(x1, y1, width, height);
+      image = trackingContext.getImageData(
+        captureX1,
+        captureY1,
+        width,
+        height,
+      );
     } catch {
       return null;
     }
 
-    const cols = Math.max(11, Math.min(21, Math.round(width / 5)));
-    const rows = Math.max(7, Math.min(13, Math.round(height / 4)));
+    const cols = Math.max(13, Math.min(23, Math.round(width / 5)));
+    const rows = Math.max(9, Math.min(15, Math.round(height / 4)));
     const samples = [];
     let sum = 0;
     for (let row = 0; row < rows; row += 1) {
       for (let col = 0; col < cols; col += 1) {
-        const fx = (col + 0.5) / cols;
-        const fy = (row + 0.5) / rows;
-        const px = fx * (width - 1);
-        const py = fy * (height - 1);
+        const px = ((col + 0.5) / cols) * (width - 1);
+        const py = ((row + 0.5) / rows) * (height - 1);
+        const canvasX = captureX1 + px;
+        const canvasY = captureY1 + py;
+        const fx = (canvasX - box.x1) / boxWidth;
+        const fy = (canvasY - box.y1) / boxHeight;
         const value = grayAt(image, width, px, py);
         const gx =
           grayAt(image, width, px + 1.5, py) -
@@ -497,8 +518,9 @@
       samples,
       mean,
       deviation: Math.sqrt(Math.max(variance, 1)),
-      width: box.x2 - box.x1,
-      height: box.y2 - box.y1,
+      width: boxWidth,
+      height: boxHeight,
+      contextPad,
     };
   }
 
