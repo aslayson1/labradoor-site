@@ -163,3 +163,50 @@ test('a vanished target is not confidently reacquired from unrelated content', (
 
   assert.equal(match.strong, false);
 });
+
+
+test('a target moving out of the frame ends instead of pinning to the edge', () => {
+  const frame = makeFrame(240, 220);
+  drawTextLikeRow(frame, 58, 182, 0);
+  const box = { x1: 52, y1: 172, x2: 184, y2: 206 };
+  const anchor = tracker.makeTemplate(frame, box, { paddingRatio: 0.08 });
+  const recent = tracker.makeTemplate(frame, box, { paddingRatio: 0.18 });
+
+  const next = makeFrame(240, 220);
+  // The selected row has moved below the visible frame.
+  const match = tracker.findBestMatch(next, box, recent, anchor, {
+    expectedMotion: { dx: 0, dy: 24 },
+  });
+
+  assert.equal(match.exitedFrame, true);
+  assert.equal(match.strong, false);
+  assert.ok(match.predicted.y2 > next.height);
+});
+
+test('different text appearing near the old location cannot inherit the mask', () => {
+  const first = makeFrame();
+  drawTextLikeRow(first, 58, 88, 0);
+  const box = { x1: 52, y1: 78, x2: 184, y2: 112 };
+  const anchor = tracker.makeTemplate(first, box, {
+    paddingRatio: 0.08,
+    cols: 19,
+    rows: 11,
+  });
+  const recent = tracker.makeTemplate(first, box, {
+    paddingRatio: 0.18,
+    cols: 17,
+    rows: 11,
+  });
+
+  const next = makeFrame();
+  // Original target is gone. A different text-like row appears close enough
+  // that a generic visual matcher could latch onto it.
+  drawTextLikeRow(next, 60, 94, 1);
+
+  const match = tracker.findBestMatch(next, box, recent, anchor, {
+    expectedMotion: { dx: 0, dy: 6 },
+  });
+
+  assert.equal(match.strong, false);
+  assert.ok(match.identityScore < 0.56);
+});
