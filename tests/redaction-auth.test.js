@@ -207,7 +207,7 @@ test('admin editor assets compile and use the server worker', () => {
   assert.match(editor, /anchorTemplate/);
   assert.match(editor, /expectedMotion/);
   assert.match(editor, /motionX/);
-  assert.match(html, /manual-tracker\.js\?v=20261001-exit-identity/);
+  assert.match(html, /manual-tracker\\.js\\?v=20261001-real-video-lock/);
   assert.match(editor, /endCorrectionHere/);
   assert.match(html, /End mask before this frame/);
   assert.doesNotMatch(editor, /wideSearch/);
