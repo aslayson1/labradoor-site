@@ -598,11 +598,11 @@
       ? best.recentCorrelation >=
           (options.minimumRecentCorrelation || 0.62) &&
         best.anchorCorrelation >=
-          (options.minimumAnchorCorrelation || 0.60) &&
+          (options.minimumAnchorCorrelation || 0.72) &&
         best.score >= (options.minimumCombinedScore || 0.62)
       : best.recentScore >= (options.minimumRecentScore || 0.56) &&
         best.anchorCorrelation >=
-          (options.minimumAnchorCorrelation || 0.60) &&
+          (options.minimumAnchorCorrelation || 0.74) &&
         best.score >= (options.minimumCombinedScore || 0.55);
 
     return {
