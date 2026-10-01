@@ -604,7 +604,7 @@
       best.recentCorrelation >=
         (options.minimumRecentCorrelation || 0.70) &&
       best.anchorCorrelation >=
-        (options.minimumAnchorCorrelation || 0.60) &&
+        (options.minimumAnchorCorrelation || 0.82) &&
       best.score >=
         (options.minimumCombinedScore || 0.60);
 
