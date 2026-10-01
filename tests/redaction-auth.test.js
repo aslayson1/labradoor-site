@@ -199,7 +199,7 @@ test('admin editor assets compile and use the server worker', () => {
   assert.match(editor, /trackingContext\.drawImage/);
   assert.match(editor, /trackingContext\.getImageData/);
   assert.doesNotMatch(editor, /\bcontext\.getImageData/);
-  assert.match(editor, /LabradoorManualTracker/);
+  assert.match(editor, /LabradoorManualTracker/);\n  assert.match(fs.readFileSync(path.join(__dirname, '..', 'admin', 'video-redaction', 'manual-tracker.js'), 'utf8'), /scoreDenseCorrelation/);
   assert.match(editor, /requestVideoFrameCallback/);
   assert.match(editor, /metadata\?\.mediaTime/);
   assert.match(editor, /lastTrackingFrame/);
@@ -209,7 +209,7 @@ test('admin editor assets compile and use the server worker', () => {
   assert.match(editor, /motionX/);
   assert.match(editor, /Preparing manual render/);
   assert.match(editor, /Automatic detection is off/);
-  assert.match(html, /manual-tracker\.js\?v=20261001-real-loss-threshold/);
+  assert.match(html, /manual-tracker\.js\?v=20261001-dense-identity/);
   assert.match(editor, /endCorrectionHere/);
   assert.match(html, /End mask before this frame/);
   assert.doesNotMatch(editor, /wideSearch/);
