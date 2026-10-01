@@ -206,7 +206,9 @@ test('admin editor assets compile and use the server worker', () => {
   assert.match(editor, /recentTemplate/);
   assert.match(editor, /anchorTemplate/);
   assert.match(editor, /expectedMotion/);
-  assert.match(editor, /motionX/);\n  assert.match(editor, /Preparing manual render/);\n  assert.match(editor, /Automatic detection is off/);
+  assert.match(editor, /motionX/);
+  assert.match(editor, /Preparing manual render/);
+  assert.match(editor, /Automatic detection is off/);
   assert.match(html, /manual-tracker\.js\?v=20261001-fast-motion/);
   assert.match(editor, /endCorrectionHere/);
   assert.match(html, /End mask before this frame/);
