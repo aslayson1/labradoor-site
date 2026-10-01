@@ -92,8 +92,65 @@
       variance += sample.weight * (sample.value - mean) ** 2;
     }
 
+    const identitySamples = samples
+      .slice()
+      .sort((a, b) => b.magnitude - a.magnitude)
+      .slice(0, Math.max(20, Math.round(samples.length * 0.38)));
+
+    // Dense, exact-position fingerprint of the user's selected region. This
+    // is intentionally inside the box only: surrounding cards/buttons may
+    // share a visual style, but the actual character texture should not.
+    const fingerprintCols = Math.max(
+      24,
+      Math.min(48, Math.round(width / 2.5)),
+    );
+    const fingerprintRows = Math.max(
+      10,
+      Math.min(24, Math.round(height / 2)),
+    );
+    const fingerprint = [];
+    let fingerprintSum = 0;
+    for (let row = 0; row < fingerprintRows; row += 1) {
+      for (let col = 0; col < fingerprintCols; col += 1) {
+        const fx = (col + 0.5) / fingerprintCols;
+        const fy = (row + 0.5) / fingerprintRows;
+        const px = box.x1 + fx * Math.max(1, width - 1);
+        const py = box.y1 + fy * Math.max(1, height - 1);
+        const value = grayAt(frame, px, py);
+        const gradient = gradientAt(frame, px, py);
+        fingerprint.push({
+          fx,
+          fy,
+          value,
+          magnitude: gradient.magnitude,
+        });
+        fingerprintSum += value;
+      }
+    }
+    const fingerprintMean =
+      fingerprintSum / Math.max(1, fingerprint.length);
+    let fingerprintVariance = 0;
+    for (const sample of fingerprint) {
+      fingerprintVariance += (sample.value - fingerprintMean) ** 2;
+    }
+    const fingerprintDeviation = Math.sqrt(
+      Math.max(16, fingerprintVariance / Math.max(1, fingerprint.length)),
+    );
+    for (const sample of fingerprint) {
+      sample.normalized =
+        (sample.value - fingerprintMean) / fingerprintDeviation;
+      sample.weight =
+        0.5 +
+        Math.min(2.5, Math.abs(sample.normalized)) +
+        Math.min(2, sample.magnitude / 36);
+    }
+
     return {
       samples,
+      identitySamples,
+      fingerprint,
+      fingerprintMean,
+      fingerprintDeviation,
       mean,
       deviation: Math.sqrt(Math.max(1, variance / Math.max(1, totalWeight))),
       width,
@@ -167,6 +224,102 @@
     return correlationScore * 0.62 + edgeScore * 0.23 + appearanceScore * 0.15;
   }
 
+  function scoreIdentityEdges(frame, box, template) {
+    const samples = template?.identitySamples || [];
+    if (!samples.length) return 0;
+
+    let matchedWeight = 0;
+    let totalWeight = 0;
+
+    for (const sample of samples) {
+      const x = box.x1 + sample.fx * (box.x2 - box.x1);
+      const y = box.y1 + sample.fy * (box.y2 - box.y1);
+      if (x < 1 || y < 1 || x >= frame.width - 1 || y >= frame.height - 1) {
+        continue;
+      }
+
+      const current = gradientAt(frame, x, y);
+      const weight = Math.max(1, sample.weight);
+      const denominator = Math.max(
+        1,
+        sample.magnitude * current.magnitude,
+      );
+      const cosine =
+        (sample.gx * current.gx + sample.gy * current.gy) / denominator;
+      const orientationScore = clamp((cosine + 1) / 2, 0, 1);
+      const magnitudeRatio =
+        Math.min(sample.magnitude, current.magnitude) /
+        Math.max(1, Math.max(sample.magnitude, current.magnitude));
+      const present =
+        current.magnitude >= Math.max(7, sample.magnitude * 0.34) &&
+        orientationScore >= 0.58;
+
+      matchedWeight +=
+        weight *
+        (present
+          ? orientationScore * 0.62 + magnitudeRatio * 0.38
+          : 0);
+      totalWeight += weight;
+    }
+
+    return matchedWeight / Math.max(1, totalWeight);
+  }
+
+  function scoreFingerprint(frame, box, template) {
+    const fingerprint = template?.fingerprint || [];
+    if (!fingerprint.length) return 0;
+
+    const values = [];
+    let sum = 0;
+    for (const sample of fingerprint) {
+      const x = box.x1 + sample.fx * (box.x2 - box.x1);
+      const y = box.y1 + sample.fy * (box.y2 - box.y1);
+      if (x < 0 || y < 0 || x >= frame.width || y >= frame.height) {
+        return 0;
+      }
+      const value = grayAt(frame, x, y);
+      values.push(value);
+      sum += value;
+    }
+
+    const mean = sum / values.length;
+    let variance = 0;
+    for (const value of values) variance += (value - mean) ** 2;
+    const deviation = Math.sqrt(Math.max(16, variance / values.length));
+
+    let weightedError = 0;
+    let weightedAgreement = 0;
+    let totalWeight = 0;
+    for (let index = 0; index < fingerprint.length; index += 1) {
+      const sample = fingerprint[index];
+      const normalized = (values[index] - mean) / deviation;
+      const difference = Math.abs(sample.normalized - normalized);
+      const sameSign =
+        sample.normalized === 0 ||
+        normalized === 0 ||
+        Math.sign(sample.normalized) === Math.sign(normalized);
+      weightedError += sample.weight * Math.min(3, difference);
+      weightedAgreement += sample.weight * (sameSign ? 1 : 0);
+      totalWeight += sample.weight;
+    }
+
+    const meanError = weightedError / Math.max(1, totalWeight);
+    const textureScore = Math.exp(-meanError * 1.15);
+    const signAgreement =
+      weightedAgreement / Math.max(1, totalWeight);
+    return textureScore * 0.72 + signAgreement * 0.28;
+  }
+
+  function visibleFraction(box, width, height) {
+    const x1 = Math.max(0, box.x1);
+    const y1 = Math.max(0, box.y1);
+    const x2 = Math.min(width, box.x2);
+    const y2 = Math.min(height, box.y2);
+    const visibleArea = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+    const area = Math.max(1, (box.x2 - box.x1) * (box.y2 - box.y1));
+    return visibleArea / area;
+  }
+
   function boxIoU(a, b) {
     const x1 = Math.max(a.x1, b.x1);
     const y1 = Math.max(a.y1, b.y1);
@@ -179,17 +332,13 @@
     return intersection / Math.max(1, areaA + areaB - intersection);
   }
 
-  function translate(box, dx, dy, width, height) {
-    return clampBox(
-      {
-        x1: box.x1 + dx,
-        y1: box.y1 + dy,
-        x2: box.x2 + dx,
-        y2: box.y2 + dy,
-      },
-      width,
-      height,
-    );
+  function translate(box, dx, dy) {
+    return {
+      x1: box.x1 + dx,
+      y1: box.y1 + dy,
+      x2: box.x2 + dx,
+      y2: box.y2 + dy,
+    };
   }
 
   function findBestMatch(frame, currentBox, recentTemplate, anchorTemplate, options = {}) {
@@ -201,9 +350,42 @@
       currentBox,
       Number(expectedMotion.dx) || 0,
       Number(expectedMotion.dy) || 0,
+    );
+    const predictedVisibleFraction = visibleFraction(
+      predicted,
       frame.width,
       frame.height,
     );
+    const currentVisibleFraction = visibleFraction(
+      currentBox,
+      frame.width,
+      frame.height,
+    );
+    const motionMagnitude = Math.hypot(
+      Number(expectedMotion.dx) || 0,
+      Number(expectedMotion.dy) || 0,
+    );
+    const movingOutward =
+      motionMagnitude >= 0.8 &&
+      predictedVisibleFraction + 0.04 < currentVisibleFraction;
+
+    // Never pin a tracked box to the screen edge. If the motion model says
+    // the selected text is leaving the visible frame, allow the occurrence
+    // to end instead of forcing a replacement match somewhere on-screen.
+    if (movingOutward && predictedVisibleFraction < 0.58) {
+      return {
+        box: predicted,
+        score: 0,
+        recentScore: 0,
+        anchorScore: 0,
+        identityScore: 0,
+        strong: false,
+        exitedFrame: true,
+        predicted,
+        predictedVisibleFraction,
+        movement: motionMagnitude,
+      };
+    }
 
     const xRadius = Math.max(
       10,
@@ -229,6 +411,16 @@
       const candidate = { x1: x, y1: y, x2: x + width, y2: y + height };
       const recentScore = scoreTemplate(frame, candidate, recentTemplate);
       const anchorScore = scoreTemplate(frame, candidate, anchorTemplate);
+      const identityScore = scoreIdentityEdges(
+        frame,
+        candidate,
+        anchorTemplate,
+      );
+      const fingerprintScore = scoreFingerprint(
+        frame,
+        candidate,
+        anchorTemplate,
+      );
       const predictionDistance = Math.hypot(
         candidate.x1 - predicted.x1,
         candidate.y1 - predicted.y1,
@@ -244,11 +436,19 @@
       );
       const collisionPenalty = overlap >= 0.55 ? 0.55 : overlap >= 0.2 ? 0.26 : 0;
       const score =
-        recentScore * 0.80 +
-        anchorScore * 0.20 -
+        recentScore * 0.68 +
+        anchorScore * 0.22 +
+        identityScore * 0.10 -
         continuityPenalty -
         collisionPenalty;
-      return { box: candidate, score, recentScore, anchorScore };
+      return {
+        box: candidate,
+        score,
+        recentScore,
+        anchorScore,
+        identityScore,
+        fingerprintScore,
+      };
     }
 
     let best = evaluate(predicted.x1, predicted.y1);
@@ -274,14 +474,17 @@
     }
 
     const strong =
-      best.recentScore >= (options.minimumRecentScore || 0.58) &&
-      best.anchorScore >= (options.minimumAnchorScore || 0.36) &&
-      best.score >= (options.minimumCombinedScore || 0.48);
+      best.recentScore >= (options.minimumRecentScore || 0.60) &&
+      best.anchorScore >= (options.minimumAnchorScore || 0.88) &&
+      best.identityScore >= (options.minimumIdentityScore || 0.62) &&
+      best.score >= (options.minimumCombinedScore || 0.58);
 
     return {
       ...best,
       strong,
+      exitedFrame: false,
       predicted,
+      predictedVisibleFraction,
       movement: Math.hypot(
         best.box.x1 - currentBox.x1,
         best.box.y1 - currentBox.y1,
@@ -295,6 +498,9 @@
     gradientAt,
     makeTemplate,
     scoreTemplate,
+    scoreIdentityEdges,
+    scoreFingerprint,
+    visibleFraction,
     boxIoU,
     findBestMatch,
   };

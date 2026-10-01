@@ -139,7 +139,11 @@ test('tracking stays with one of two nearby moving text rows', () => {
     occupied: [{ x1: 48, y1: 118, x2: 181, y2: 151 }],
   });
 
-  assert.equal(match.strong, true);
+  assert.equal(
+    match.strong,
+    true,
+    `nearby-row target should stay locked: ${JSON.stringify(match)}`,
+  );
   assert.ok(Math.abs(match.box.x1 - 51) <= 3);
   assert.ok(Math.abs(match.box.y1 - 72) <= 3);
 });
@@ -162,4 +166,54 @@ test('a vanished target is not confidently reacquired from unrelated content', (
   });
 
   assert.equal(match.strong, false);
+});
+
+
+test('a target moving out of the frame ends instead of pinning to the edge', () => {
+  const frame = makeFrame(240, 220);
+  drawTextLikeRow(frame, 58, 182, 0);
+  const box = { x1: 52, y1: 172, x2: 184, y2: 206 };
+  const anchor = tracker.makeTemplate(frame, box, { paddingRatio: 0.08 });
+  const recent = tracker.makeTemplate(frame, box, { paddingRatio: 0.18 });
+
+  const next = makeFrame(240, 220);
+  // The selected row has moved below the visible frame.
+  const match = tracker.findBestMatch(next, box, recent, anchor, {
+    expectedMotion: { dx: 0, dy: 40 },
+  });
+
+  assert.equal(match.exitedFrame, true);
+  assert.equal(match.strong, false);
+  assert.ok(match.predicted.y2 > next.height);
+});
+
+test('different text appearing near the old location cannot inherit the mask', () => {
+  const first = makeFrame();
+  drawTextLikeRow(first, 58, 88, 0);
+  const box = { x1: 52, y1: 78, x2: 184, y2: 112 };
+  const anchor = tracker.makeTemplate(first, box, {
+    paddingRatio: 0.08,
+    cols: 19,
+    rows: 11,
+  });
+  const recent = tracker.makeTemplate(first, box, {
+    paddingRatio: 0.18,
+    cols: 17,
+    rows: 11,
+  });
+
+  const next = makeFrame();
+  // Original target is gone. A different text-like row appears close enough
+  // that a generic visual matcher could latch onto it.
+  drawTextLikeRow(next, 60, 94, 1);
+
+  const match = tracker.findBestMatch(next, box, recent, anchor, {
+    expectedMotion: { dx: 0, dy: 6 },
+  });
+
+  assert.equal(
+    match.strong,
+    false,
+    `replacement content must not inherit target: ${JSON.stringify(match)}`,
+  );
 });
