@@ -37,6 +37,7 @@
   const endTime = byId('endTime');
   const correctionKind = byId('correctionKind');
   const trackingMode = byId('trackingMode');
+  const endCorrectionHere = byId('endCorrectionHere');
   const removeCorrection = byId('removeCorrection');
   const applyCorrections = byId('applyCorrections');
   const output = byId('output');
@@ -89,6 +90,8 @@
   let runVersion = 0;
   let animationFrame = 0;
   const previewTrackers = new Map();
+  const trackingCanvas = document.createElement('canvas');
+  const trackingContext = trackingCanvas.getContext('2d', { willReadFrequently: true });
   const previewScratch = document.createElement('canvas');
   const previewScratchContext = previewScratch.getContext('2d');
   const previewStrongMatch = 0.38;
@@ -460,7 +463,7 @@
 
     let image;
     try {
-      image = context.getImageData(x1, y1, width, height);
+      image = trackingContext.getImageData(x1, y1, width, height);
     } catch {
       return null;
     }
@@ -526,7 +529,52 @@
     return correlation * 0.78 + appearanceScore * 0.22;
   }
 
-  function searchPreviewBox(item, tracker) {
+  function boxIoU(a, b) {
+    const x1 = Math.max(a.x1, b.x1);
+    const y1 = Math.max(a.y1, b.y1);
+    const x2 = Math.min(a.x2, b.x2);
+    const y2 = Math.min(a.y2, b.y2);
+    const intersection = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+    if (!intersection) return 0;
+    const areaA = Math.max(1, (a.x2 - a.x1) * (a.y2 - a.y1));
+    const areaB = Math.max(1, (b.x2 - b.x1) * (b.y2 - b.y1));
+    return intersection / Math.max(1, areaA + areaB - intersection);
+  }
+
+  function otherTrackedBoxes(itemId, now) {
+    return corrections.flatMap((other) => {
+      if (other.id === itemId || !visibleAt(other, now)) return [];
+      if (other.trackingMode !== 'forward') return [other.box];
+      const tracker = previewTrackers.get(other.id);
+      if (!tracker || tracker.lost) return [];
+      return [tracker.box];
+    });
+  }
+
+  function candidateStabilityPenalty(candidate, current, occupied) {
+    const currentCenterX = (current.x1 + current.x2) / 2;
+    const currentCenterY = (current.y1 + current.y2) / 2;
+    const candidateCenterX = (candidate.x1 + candidate.x2) / 2;
+    const candidateCenterY = (candidate.y1 + candidate.y2) / 2;
+    const distance = Math.hypot(
+      candidateCenterX - currentCenterX,
+      candidateCenterY - currentCenterY,
+    );
+    const scale = Math.max(
+      36,
+      (current.x2 - current.x1) * 1.4,
+      (current.y2 - current.y1) * 3.2,
+    );
+    const motionPenalty = Math.min(0.18, (distance / scale) * 0.12);
+    const collision = occupied.reduce(
+      (maximum, box) => Math.max(maximum, boxIoU(candidate, box)),
+      0,
+    );
+    const collisionPenalty = collision >= 0.55 ? 0.55 : collision >= 0.2 ? 0.28 : 0;
+    return motionPenalty + collisionPenalty;
+  }
+
+  function searchPreviewBox(item, tracker, now) {
     const current = tracker.box;
     const width = current.x2 - current.x1;
     const height = current.y2 - current.y1;
@@ -546,7 +594,7 @@
 
     let searchImage;
     try {
-      searchImage = context.getImageData(
+      searchImage = trackingContext.getImageData(
         searchX1,
         searchY1,
         Math.max(1, searchX2 - searchX1),
@@ -556,6 +604,7 @@
       return { box: current, score: -Infinity };
     }
 
+    const occupied = otherTrackedBoxes(item.id, now);
     const coarseStep = 4;
     let best = { box: current, score: -Infinity };
     const minX = searchX1;
@@ -566,12 +615,15 @@
     for (let y = minY; y <= maxY; y += coarseStep) {
       for (let x = minX; x <= maxX; x += coarseStep) {
         const candidate = { x1: x, y1: y, x2: x + width, y2: y + height };
-        const score = candidateCorrelation(
+        const identityScore = candidateCorrelation(
           searchImage,
           { x: searchX1, y: searchY1 },
           candidate,
           tracker.template,
         );
+        const score =
+          identityScore -
+          candidateStabilityPenalty(candidate, current, occupied);
         if (score > best.score) best = { box: candidate, score };
       }
     }
@@ -584,12 +636,15 @@
     for (let y = refineMinY; y <= refineMaxY; y += 1) {
       for (let x = refineMinX; x <= refineMaxX; x += 1) {
         const candidate = { x1: x, y1: y, x2: x + width, y2: y + height };
-        const score = candidateCorrelation(
+        const identityScore = candidateCorrelation(
           searchImage,
           { x: searchX1, y: searchY1 },
           candidate,
           tracker.template,
         );
+        const score =
+          identityScore -
+          candidateStabilityPenalty(candidate, current, occupied);
         if (score > best.score) best = { box: candidate, score };
       }
     }
@@ -649,7 +704,7 @@
     }
 
     if (delta > 0.004) {
-      const match = searchPreviewBox(item, tracker);
+      const match = searchPreviewBox(item, tracker, now);
       tracker.confidence = match.score;
       tracker.lastTime = now;
 
@@ -752,6 +807,14 @@
   function drawFrame() {
     if (!source.videoWidth || !display.width) return;
     try {
+      if (
+        trackingCanvas.width !== display.width ||
+        trackingCanvas.height !== display.height
+      ) {
+        trackingCanvas.width = display.width;
+        trackingCanvas.height = display.height;
+      }
+      trackingContext.drawImage(source, 0, 0, display.width, display.height);
       context.drawImage(source, 0, 0, display.width, display.height);
     } catch {
       return;
@@ -816,11 +879,17 @@
         const atAnchor =
           Math.abs(source.currentTime - item.startSeconds) <=
           Math.max(0.05, frameDuration() * 0.75);
-        const visible =
-          item.trackingMode === 'forward'
-            ? atAnchor
-            : visibleAt(item, source.currentTime);
-        return visible && pointInside(point, item.box);
+        if (item.trackingMode !== 'forward') {
+          return visibleAt(item, source.currentTime) && pointInside(point, item.box);
+        }
+        if (atAnchor && pointInside(point, item.box)) return true;
+        const tracker = previewTrackers.get(item.id);
+        return Boolean(
+          tracker &&
+            !tracker.lost &&
+            visibleAt(item, source.currentTime) &&
+            pointInside(point, tracker.box),
+        );
       });
   }
 
@@ -1045,6 +1114,32 @@
     renderCorrections();
     drawFrame();
   });
+  endCorrectionHere.addEventListener('click', () => {
+    const item = selectedCorrection();
+    if (!item || !Number.isFinite(source.currentTime)) return;
+    const stopBefore = Math.max(
+      item.startSeconds,
+      source.currentTime - Math.max(frameDuration(), 0.01),
+    );
+    if (stopBefore <= item.startSeconds + 0.001) {
+      setJobStatus(
+        'Move later in the video',
+        'The playhead needs to be after the mask starts before it can be ended.',
+        'warn',
+      );
+      return;
+    }
+    item.endSeconds = Math.min(item.endSeconds, stopBefore);
+    previewTrackers.delete(item.id);
+    setJobStatus(
+      'Mask ended at this point',
+      'Earlier frames keep this mask. This frame and later frames will no longer use it.',
+      'ok',
+    );
+    renderCorrections();
+    drawFrame();
+  });
+
   removeCorrection.addEventListener('click', () => {
     previewTrackers.delete(selectedCorrectionId);
     corrections = corrections.filter((item) => item.id !== selectedCorrectionId);

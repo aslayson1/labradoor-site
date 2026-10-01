@@ -196,6 +196,12 @@ test('admin editor assets compile and use the server worker', () => {
   assert.match(editor, /previewLostFrameLimit = 3/);
   assert.match(editor, /tracker\.mismatchFrames/);
   assert.match(editor, /tracker\.lost = true/);
+  assert.match(editor, /trackingContext\.drawImage/);
+  assert.match(editor, /trackingContext\.getImageData/);
+  assert.doesNotMatch(editor, /\bcontext\.getImageData/);
+  assert.match(editor, /candidateStabilityPenalty/);
+  assert.match(editor, /endCorrectionHere/);
+  assert.match(html, /End mask before this frame/);
   assert.doesNotMatch(editor, /wideSearch/);
   assert.match(editor, /applyPreviewProtection/);
   assert.match(editor, /context\.filter = 'blur\(12px\)'/);
