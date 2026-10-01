@@ -171,7 +171,8 @@
             </div>
 
             <div class="correction-list" id="correctionList" style="margin-top:10px"></div>
-            <button class="btn yellow" id="manualProcess" type="button" style="width:100%;margin-top:10px">Track &amp; mask selected text</button>
+            <button class="btn yellow" id="manualProcess" type="button" style="width:100%;margin-top:10px">Render protected video</button>
+            <div class="sub" style="margin-top:6px">Starts the private render worker using only your manual masks. Automatic text detection stays off.</div>
             <button class="btn secondary" id="applyCorrections" type="button" disabled style="width:100%;margin-top:8px">Reprocess tracked masks</button>
           </div>
 
@@ -183,8 +184,8 @@
 </div>
 
 <video id="source" class="sr" playsinline preload="metadata"></video>
-<script src="/admin/video-redaction/manual-tracker.js?v=20261001-real-video-lock" defer></script>
-<script src="/admin/video-redaction/editor.js?v=20261001-real-video-lock" defer></script>
+<script src="/admin/video-redaction/manual-tracker.js?v=20261001-ncc-lock" defer></script>
+<script src="/admin/video-redaction/editor.js?v=20261001-ncc-lock" defer></script>
 <!-- manual-tracking-deploy-refresh -->
 </body>
 </html>
