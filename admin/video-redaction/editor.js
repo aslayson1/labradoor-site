@@ -45,6 +45,10 @@
   const outputMeta = byId('outputMeta');
   const download = byId('download');
   const hint = byId('hint');
+  const ManualTracker = window.LabradoorManualTracker;
+  if (!ManualTracker) {
+    throw new Error('Manual tracking engine failed to load');
+  }
 
   const colors = {
     address: '#ffb000',
@@ -89,13 +93,14 @@
   let busy = false;
   let runVersion = 0;
   let animationFrame = 0;
+  let animationFrameKind = '';
+  let lastTrackingFrame = null;
+  let trackingScale = 1;
   const previewTrackers = new Map();
   const trackingCanvas = document.createElement('canvas');
   const trackingContext = trackingCanvas.getContext('2d', { willReadFrequently: true });
   const previewScratch = document.createElement('canvas');
   const previewScratchContext = previewScratch.getContext('2d');
-  const previewStrongMatch = 0.50;
-  const previewWeakMatch = 0.34;
   const previewLostFrameLimit = 3;
 
   function formatTime(value) {
@@ -324,16 +329,50 @@
     )}`;
   }
 
+  function cancelSourceAnimation() {
+    if (!animationFrame) return;
+    if (
+      animationFrameKind === 'video' &&
+      typeof source.cancelVideoFrameCallback === 'function'
+    ) {
+      source.cancelVideoFrameCallback(animationFrame);
+    } else {
+      cancelAnimationFrame(animationFrame);
+    }
+    animationFrame = 0;
+    animationFrameKind = '';
+  }
+
+  function scheduleSourceFrame(tick) {
+    if (typeof source.requestVideoFrameCallback === 'function') {
+      animationFrameKind = 'video';
+      animationFrame = source.requestVideoFrameCallback(tick);
+    } else {
+      animationFrameKind = 'raf';
+      animationFrame = requestAnimationFrame(tick);
+    }
+  }
+
   function animateSource() {
-    cancelAnimationFrame(animationFrame);
-    const tick = () => {
+    cancelSourceAnimation();
+
+    const tick = (_timestamp, metadata) => {
       updateTime();
-      drawFrame();
+      const mediaTime = Number(metadata?.mediaTime);
+      drawFrame(Number.isFinite(mediaTime) ? mediaTime : source.currentTime);
       if (!source.paused && !source.ended) {
-        animationFrame = requestAnimationFrame(tick);
+        scheduleSourceFrame(tick);
       }
     };
-    tick();
+
+    // Draw the current paused/starting frame immediately. Once playback is
+    // moving, advance tracking only when the browser presents a new video
+    // frame rather than on every display refresh.
+    updateTime();
+    drawFrame(source.currentTime);
+    if (!source.paused && !source.ended) {
+      scheduleSourceFrame(tick);
+    }
   }
 
   play.addEventListener('click', async () => {
@@ -443,246 +482,23 @@
     };
   }
 
-  function grayAt(data, width, x, y) {
-    const px = Math.max(0, Math.min(width - 1, Math.round(x)));
-    const py = Math.max(0, Math.min(data.height - 1, Math.round(y)));
-    const index = (py * width + px) * 4;
-    return (
-      data.data[index] * 0.299 +
-      data.data[index + 1] * 0.587 +
-      data.data[index + 2] * 0.114
-    );
-  }
-
-  function previewGradient(image, width, x, y) {
-    const gx =
-      grayAt(image, width, x + 1.5, y) -
-      grayAt(image, width, x - 1.5, y);
-    const gy =
-      grayAt(image, width, x, y + 1.5) -
-      grayAt(image, width, x, y - 1.5);
+  function toTrackingBox(box) {
     return {
-      gx,
-      gy,
-      magnitude: Math.hypot(gx, gy),
+      x1: box.x1 * trackingScale,
+      y1: box.y1 * trackingScale,
+      x2: box.x2 * trackingScale,
+      y2: box.y2 * trackingScale,
     };
   }
 
-  function makePreviewTemplate(box) {
-    const x1 = Math.max(0, Math.floor(box.x1));
-    const y1 = Math.max(0, Math.floor(box.y1));
-    const width = Math.max(4, Math.min(display.width - x1, Math.ceil(box.x2 - box.x1)));
-    const height = Math.max(4, Math.min(display.height - y1, Math.ceil(box.y2 - box.y1)));
-    if (width < 4 || height < 4) return null;
-
-    let image;
-    try {
-      image = trackingContext.getImageData(x1, y1, width, height);
-    } catch {
-      return null;
-    }
-
-    // The selected text itself is the primary identity. Keep only the
-    // strongest letter/number edges so flat card backgrounds and nearby
-    // buttons cannot pull the mask away from the user's exact selection.
-    const cols = Math.max(15, Math.min(31, Math.round(width / 3.5)));
-    const rows = Math.max(9, Math.min(19, Math.round(height / 2.5)));
-    const candidates = [];
-    for (let row = 0; row < rows; row += 1) {
-      for (let col = 0; col < cols; col += 1) {
-        const fx = (col + 0.5) / cols;
-        const fy = (row + 0.5) / rows;
-        const px = fx * (width - 1);
-        const py = fy * (height - 1);
-        const value = grayAt(image, width, px, py);
-        const gradient = previewGradient(image, width, px, py);
-        candidates.push({
-          fx,
-          fy,
-          value,
-          gx: gradient.gx,
-          gy: gradient.gy,
-          magnitude: gradient.magnitude,
-        });
-      }
-    }
-
-    candidates.sort((a, b) => b.magnitude - a.magnitude);
-    const sampleCount = Math.max(
-      48,
-      Math.min(160, Math.round(candidates.length * 0.42)),
-    );
-    const samples = candidates.slice(0, sampleCount);
-    const mean =
-      samples.reduce((total, sample) => total + sample.value, 0) /
-      samples.length;
-    const variance =
-      samples.reduce((total, sample) => total + (sample.value - mean) ** 2, 0) /
-      samples.length;
-
-    // A few surrounding pixels are retained only as a tie-breaker. They can
-    // never outweigh the selected text edges.
-    const contextPad = Math.max(3, Math.min(8, Math.round(height * 0.3)));
-    const contextSamples = [];
-    const captureX1 = Math.max(0, Math.floor(box.x1 - contextPad));
-    const captureY1 = Math.max(0, Math.floor(box.y1 - contextPad));
-    const captureX2 = Math.min(display.width, Math.ceil(box.x2 + contextPad));
-    const captureY2 = Math.min(display.height, Math.ceil(box.y2 + contextPad));
-    try {
-      const contextImage = trackingContext.getImageData(
-        captureX1,
-        captureY1,
-        Math.max(1, captureX2 - captureX1),
-        Math.max(1, captureY2 - captureY1),
-      );
-      const contextCols = 9;
-      const contextRows = 7;
-      for (let row = 0; row < contextRows; row += 1) {
-        for (let col = 0; col < contextCols; col += 1) {
-          const canvasX =
-            captureX1 +
-            ((col + 0.5) / contextCols) * (contextImage.width - 1);
-          const canvasY =
-            captureY1 +
-            ((row + 0.5) / contextRows) * (contextImage.height - 1);
-          const inside =
-            canvasX >= box.x1 &&
-            canvasX <= box.x2 &&
-            canvasY >= box.y1 &&
-            canvasY <= box.y2;
-          if (inside) continue;
-          const px = canvasX - captureX1;
-          const py = canvasY - captureY1;
-          const gradient = previewGradient(
-            contextImage,
-            contextImage.width,
-            px,
-            py,
-          );
-          contextSamples.push({
-            fx: (canvasX - box.x1) / width,
-            fy: (canvasY - box.y1) / height,
-            value: grayAt(contextImage, contextImage.width, px, py),
-            gx: gradient.gx,
-            gy: gradient.gy,
-            magnitude: gradient.magnitude,
-          });
-        }
-      }
-    } catch {
-      // The core selected-text template is sufficient on its own.
-    }
-
+  function fromTrackingBox(box) {
+    const scale = Math.max(0.0001, trackingScale);
     return {
-      samples,
-      contextSamples,
-      mean,
-      deviation: Math.sqrt(Math.max(variance, 1)),
-      width: box.x2 - box.x1,
-      height: box.y2 - box.y1,
+      x1: box.x1 / scale,
+      y1: box.y1 / scale,
+      x2: box.x2 / scale,
+      y2: box.y2 / scale,
     };
-  }
-
-  function previewSampleScore(searchImage, searchOrigin, box, samples) {
-    if (!samples.length) return 0;
-    let appearanceTotal = 0;
-    let orientationTotal = 0;
-    let magnitudeTotal = 0;
-    let weightedTotal = 0;
-    let weightedCandidateSum = 0;
-    let weightedTemplateSum = 0;
-    const values = [];
-
-    for (const sample of samples) {
-      const x = box.x1 + sample.fx * (box.x2 - box.x1) - searchOrigin.x;
-      const y = box.y1 + sample.fy * (box.y2 - box.y1) - searchOrigin.y;
-      const value = grayAt(searchImage, searchImage.width, x, y);
-      const gradient = previewGradient(searchImage, searchImage.width, x, y);
-      const weight = Math.max(8, sample.magnitude);
-      const orientationDenominator = Math.max(
-        1,
-        sample.magnitude * gradient.magnitude,
-      );
-      const orientation =
-        (sample.gx * gradient.gx + sample.gy * gradient.gy) /
-        orientationDenominator;
-      const orientationScore = Math.max(0, (orientation + 1) / 2);
-      const magnitudeScore = Math.max(
-        0,
-        1 -
-          Math.abs(sample.magnitude - gradient.magnitude) /
-            Math.max(24, sample.magnitude * 1.6),
-      );
-      const appearanceScore = Math.max(
-        0,
-        1 - Math.abs(sample.value - value) / 95,
-      );
-      appearanceTotal += appearanceScore * weight;
-      orientationTotal += orientationScore * weight;
-      magnitudeTotal += magnitudeScore * weight;
-      weightedCandidateSum += value * weight;
-      weightedTemplateSum += sample.value * weight;
-      weightedTotal += weight;
-      values.push({ value, weight });
-    }
-
-    const candidateMean = weightedCandidateSum / Math.max(1, weightedTotal);
-    const templateMean = weightedTemplateSum / Math.max(1, weightedTotal);
-    let covariance = 0;
-    let candidateVariance = 0;
-    let templateVariance = 0;
-    for (let index = 0; index < samples.length; index += 1) {
-      const weight = values[index].weight;
-      const a = samples[index].value;
-      const b = values[index].value;
-      covariance += weight * (a - templateMean) * (b - candidateMean);
-      templateVariance += weight * (a - templateMean) ** 2;
-      candidateVariance += weight * (b - candidateMean) ** 2;
-    }
-    const correlation =
-      covariance /
-      Math.max(
-        1,
-        Math.sqrt(templateVariance * candidateVariance),
-      );
-    const correlationScore = Math.max(0, (correlation + 1) / 2);
-
-    return (
-      (orientationTotal / weightedTotal) * 0.46 +
-      (magnitudeTotal / weightedTotal) * 0.27 +
-      correlationScore * 0.17 +
-      (appearanceTotal / weightedTotal) * 0.10
-    );
-  }
-
-  function candidateCorrelation(searchImage, searchOrigin, box, template) {
-    const coreScore = previewSampleScore(
-      searchImage,
-      searchOrigin,
-      box,
-      template.samples,
-    );
-    const contextScore = previewSampleScore(
-      searchImage,
-      searchOrigin,
-      box,
-      template.contextSamples || [],
-    );
-    return (template.contextSamples || []).length
-      ? coreScore * 0.96 + contextScore * 0.04
-      : coreScore;
-  }
-
-  function boxIoU(a, b) {
-    const x1 = Math.max(a.x1, b.x1);
-    const y1 = Math.max(a.y1, b.y1);
-    const x2 = Math.min(a.x2, b.x2);
-    const y2 = Math.min(a.y2, b.y2);
-    const intersection = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
-    if (!intersection) return 0;
-    const areaA = Math.max(1, (a.x2 - a.x1) * (a.y2 - a.y1));
-    const areaB = Math.max(1, (b.x2 - b.x1) * (b.y2 - b.y1));
-    return intersection / Math.max(1, areaA + areaB - intersection);
   }
 
   function otherTrackedBoxes(itemId, now) {
@@ -695,150 +511,90 @@
     });
   }
 
-  function candidateStabilityPenalty(
-    candidate,
-    current,
-    occupied,
-    expectedMotion = null,
-  ) {
-    const currentCenterX = (current.x1 + current.x2) / 2;
-    const currentCenterY = (current.y1 + current.y2) / 2;
-    const candidateCenterX = (candidate.x1 + candidate.x2) / 2;
-    const candidateCenterY = (candidate.y1 + candidate.y2) / 2;
-    const dx = candidateCenterX - currentCenterX;
-    const dy = candidateCenterY - currentCenterY;
-    const distance = Math.hypot(dx, dy);
-    const scale = Math.max(
-      36,
-      (current.x2 - current.x1) * 1.4,
-      (current.y2 - current.y1) * 3.2,
-    );
-    const motionPenalty = Math.min(0.16, (distance / scale) * 0.10);
-    let continuityPenalty = 0;
-    if (expectedMotion) {
-      const deviation = Math.hypot(
-        dx - expectedMotion.dx,
-        dy - expectedMotion.dy,
-      );
-      continuityPenalty = Math.min(0.24, (deviation / scale) * 0.22);
-    }
-    const collision = occupied.reduce(
-      (maximum, box) => Math.max(maximum, boxIoU(candidate, box)),
-      0,
-    );
-    const collisionPenalty = collision >= 0.55 ? 0.55 : collision >= 0.2 ? 0.28 : 0;
-    return motionPenalty + continuityPenalty + collisionPenalty;
+  function makeAnchorTemplate(box) {
+    return lastTrackingFrame
+      ? ManualTracker.makeTemplate(lastTrackingFrame, toTrackingBox(box), {
+          paddingRatio: 0.08,
+          cols: 19,
+          rows: 11,
+        })
+      : null;
+  }
+
+  function makeRecentTemplate(box) {
+    return lastTrackingFrame
+      ? ManualTracker.makeTemplate(lastTrackingFrame, toTrackingBox(box), {
+          paddingRatio: 0.20,
+          cols: 17,
+          rows: 11,
+        })
+      : null;
   }
 
   function searchPreviewBox(item, tracker, now) {
-    const current = tracker.box;
-    const width = current.x2 - current.x1;
-    const height = current.y2 - current.y1;
-    // Stay close to this occurrence. A broad search can jump to similar
-    // text (or a neighboring mask) when the selected text disappears.
-    const xRadius = Math.max(14, Math.min(40, width * 0.5));
-    const yRadius = Math.max(28, Math.min(72, height * 3));
-
-    const searchX1 = Math.max(0, Math.floor(current.x1 - xRadius));
-    const searchY1 = Math.max(0, Math.floor(current.y1 - yRadius));
-    const searchX2 = Math.min(
-      display.width,
-      Math.ceil(current.x2 + xRadius),
-    );
-    const searchY2 = Math.min(
-      display.height,
-      Math.ceil(current.y2 + yRadius),
-    );
-
-    let searchImage;
-    try {
-      searchImage = trackingContext.getImageData(
-        searchX1,
-        searchY1,
-        Math.max(1, searchX2 - searchX1),
-        Math.max(1, searchY2 - searchY1),
-      );
-    } catch {
-      return { box: current, score: -Infinity };
+    if (!lastTrackingFrame) {
+      return {
+        box: tracker.box,
+        strong: false,
+        recentScore: 0,
+        anchorScore: 0,
+        score: 0,
+      };
     }
 
-    const occupied = otherTrackedBoxes(item.id, now);
     const delta = Math.max(1 / 120, now - tracker.lastTime);
     const motionScale =
       tracker.lastDelta && tracker.lastDelta > 0
-        ? Math.max(0.4, Math.min(2.5, delta / tracker.lastDelta))
+        ? Math.max(0.45, Math.min(2.2, delta / tracker.lastDelta))
         : 1;
     const expectedMotion = tracker.hasMotion
       ? {
           dx: tracker.motionX * motionScale,
           dy: tracker.motionY * motionScale,
         }
-      : null;
-    const coarseStep = 3;
-    let best = { box: current, score: -Infinity };
-    const minX = searchX1;
-    const maxX = Math.max(minX, searchX2 - width);
-    const minY = searchY1;
-    const maxY = Math.max(minY, searchY2 - height);
+      : { dx: 0, dy: 0 };
 
-    for (let y = minY; y <= maxY; y += coarseStep) {
-      for (let x = minX; x <= maxX; x += coarseStep) {
-        const candidate = { x1: x, y1: y, x2: x + width, y2: y + height };
-        const identityScore = candidateCorrelation(
-          searchImage,
-          { x: searchX1, y: searchY1 },
-          candidate,
-          tracker.template,
-        );
-        const score =
-          identityScore -
-          candidateStabilityPenalty(candidate, current, occupied, expectedMotion);
-        if (score > best.score) best = { box: candidate, score };
-      }
-    }
-
-    const refine = 5;
-    const refineMinX = Math.max(minX, best.box.x1 - refine);
-    const refineMaxX = Math.min(maxX, best.box.x1 + refine);
-    const refineMinY = Math.max(minY, best.box.y1 - refine);
-    const refineMaxY = Math.min(maxY, best.box.y1 + refine);
-    for (let y = refineMinY; y <= refineMaxY; y += 1) {
-      for (let x = refineMinX; x <= refineMaxX; x += 1) {
-        const candidate = { x1: x, y1: y, x2: x + width, y2: y + height };
-        const identityScore = candidateCorrelation(
-          searchImage,
-          { x: searchX1, y: searchY1 },
-          candidate,
-          tracker.template,
-        );
-        const score =
-          identityScore -
-          candidateStabilityPenalty(candidate, current, occupied, expectedMotion);
-        if (score > best.score) best = { box: candidate, score };
-      }
-    }
-
-    const currentScore =
-      candidateCorrelation(
-        searchImage,
-        { x: searchX1, y: searchY1 },
-        current,
-        tracker.template,
-      ) - candidateStabilityPenalty(current, current, occupied, expectedMotion);
-    const movement = Math.hypot(
-      best.box.x1 - current.x1,
-      best.box.y1 - current.y1,
+    const match = ManualTracker.findBestMatch(
+      lastTrackingFrame,
+      toTrackingBox(tracker.box),
+      tracker.recentTemplate,
+      tracker.anchorTemplate,
+      {
+        occupied: otherTrackedBoxes(item.id, now).map(toTrackingBox),
+        expectedMotion: {
+          dx: expectedMotion.dx * trackingScale,
+          dy: expectedMotion.dy * trackingScale,
+        },
+      },
     );
-    // A tiny gain is sampling noise. Keep the hand-placed geometry steady
-    // until there is convincing motion; never teleport to a distant match.
-    if (
-      best.score < currentScore + 0.035 ||
-      movement < 2 ||
-      movement > Math.max(28, Math.min(76, height * 3.5))
-    ) {
-      return { box: current, score: currentScore };
-    }
-    return { box: clampPreviewBox(best.box), score: best.score };
+    return {
+      ...match,
+      box: fromTrackingBox(match.box),
+      predicted: fromTrackingBox(match.predicted),
+      movement: match.movement / Math.max(0.0001, trackingScale),
+    };
+  }
+
+  function resetPreviewTracker(item, now) {
+    const anchorTemplate = makeAnchorTemplate(item.box);
+    const recentTemplate = makeRecentTemplate(item.box);
+    if (!anchorTemplate || !recentTemplate) return null;
+
+    const tracker = {
+      anchorTemplate,
+      recentTemplate,
+      box: { ...item.box },
+      lastTime: now,
+      lastDelta: 0,
+      confidence: 1,
+      mismatchFrames: 0,
+      lost: false,
+      hasMotion: false,
+      motionX: 0,
+      motionY: 0,
+    };
+    previewTrackers.set(item.id, tracker);
+    return tracker;
   }
 
   function previewBoxFor(item, now) {
@@ -846,46 +602,27 @@
     if (item.trackingMode !== 'forward') return item.box;
 
     let tracker = previewTrackers.get(item.id);
-    const anchorWindow = Math.max(0.06, frameDuration() * 1.2);
+    const anchorWindow = Math.max(0.012, frameDuration() * 0.48);
     const atAnchor = Math.abs(now - item.startSeconds) <= anchorWindow;
 
     if (!tracker && atAnchor) {
-      const template = makePreviewTemplate(item.box);
-      if (template) {
-        tracker = {
-          template,
-          box: { ...item.box },
-          lastTime: now,
-          confidence: 1,
-          mismatchFrames: 0,
-          lost: false,
-          hasMotion: false,
-          motionX: 0,
-          motionY: 0,
-          lastDelta: 0,
-        };
-        previewTrackers.set(item.id, tracker);
-      }
+      tracker = resetPreviewTracker(item, now);
     }
     if (!tracker) return atAnchor ? item.box : null;
 
-    if (now < item.startSeconds - anchorWindow || now > item.endSeconds + anchorWindow) {
+    if (
+      now < item.startSeconds - anchorWindow ||
+      now > item.endSeconds + anchorWindow
+    ) {
       return null;
     }
 
     if (atAnchor) {
-      // Reset only after a seek back to the anchor, not on every animation
-      // frame in the anchor window. Repeated resets look like bouncing.
-      if (now < tracker.lastTime - 0.03) {
-        tracker.box = { ...item.box };
-        tracker.lastTime = now;
-        tracker.confidence = 1;
-        tracker.mismatchFrames = 0;
-        tracker.lost = false;
-        tracker.hasMotion = false;
-        tracker.motionX = 0;
-        tracker.motionY = 0;
-        tracker.lastDelta = 0;
+      // Seeking back to the user's exact placement is the only time we reset
+      // identity and motion. During normal playback the very next video frame
+      // is allowed to move immediately.
+      if (now < tracker.lastTime - 0.02) {
+        tracker = resetPreviewTracker(item, now) || tracker;
       }
       return tracker.box;
     }
@@ -893,43 +630,48 @@
     if (tracker.lost) return null;
 
     const delta = now - tracker.lastTime;
-    const jumped = delta < -0.03 || delta > 0.35;
+    const jumped = delta < -0.02 || delta > 0.35;
     if (jumped) {
-      // Never scan the whole frame after a seek or playback jump. That was
-      // the main path that allowed a finished mask to latch onto unrelated text.
+      // A seek has no reliable previous-frame motion. Do not guess or scan
+      // broadly for a lookalike elsewhere on screen.
       tracker.lost = true;
       return null;
     }
 
     if (delta > 0.004) {
+      const previousBox = tracker.box;
       const match = searchPreviewBox(item, tracker, now);
       tracker.confidence = match.score;
       tracker.lastTime = now;
 
-      if (match.score >= previewStrongMatch) {
-        const dx = match.box.x1 - tracker.box.x1;
-        const dy = match.box.y1 - tracker.box.y1;
-        if (Math.hypot(dx, dy) >= 1) {
+      if (match.strong) {
+        const dx = match.box.x1 - previousBox.x1;
+        const dy = match.box.y1 - previousBox.y1;
+
+        if (Math.hypot(dx, dy) >= 0.75) {
           if (!tracker.hasMotion) {
             tracker.motionX = dx;
             tracker.motionY = dy;
             tracker.hasMotion = true;
           } else {
-            tracker.motionX = tracker.motionX * 0.58 + dx * 0.42;
-            tracker.motionY = tracker.motionY * 0.58 + dy * 0.42;
+            tracker.motionX = tracker.motionX * 0.55 + dx * 0.45;
+            tracker.motionY = tracker.motionY * 0.55 + dy * 0.45;
           }
           tracker.lastDelta = delta;
-        } else if (tracker.hasMotion) {
-          tracker.motionX *= 0.86;
-          tracker.motionY *= 0.86;
         }
-        tracker.box = match.box;
+
+        tracker.box = ManualTracker.clampBox(
+          match.box,
+          display.width,
+          display.height,
+        );
+        tracker.recentTemplate =
+          makeRecentTemplate(tracker.box) || tracker.recentTemplate;
         tracker.mismatchFrames = 0;
       } else {
-        // Never move a hand-placed mask on a weak match. Motion blur can make
-        // several nearby text regions look plausible for a frame or two.
-        // Hold the last confirmed position and require the exact identity to
-        // recover; otherwise end this occurrence instead of visibly drifting.
+        // Never move on an uncertain match. Keep the last confirmed box for
+        // a couple of presented video frames, then end this occurrence rather
+        // than drifting onto a button, neighboring row, or repeated text.
         tracker.mismatchFrames += 1;
         if (tracker.mismatchFrames >= previewLostFrameLimit) {
           tracker.lost = true;
@@ -1016,23 +758,51 @@
     context.restore();
   }
 
-  function drawFrame() {
+  function drawFrame(frameTime = source.currentTime) {
     if (!source.videoWidth || !display.width) return;
     try {
+      const maxTrackingDimension = 1280;
+      const nextTrackingScale = Math.min(
+        1,
+        maxTrackingDimension / Math.max(display.width, display.height),
+      );
+      const trackingWidth = Math.max(
+        1,
+        Math.round(display.width * nextTrackingScale),
+      );
+      const trackingHeight = Math.max(
+        1,
+        Math.round(display.height * nextTrackingScale),
+      );
       if (
-        trackingCanvas.width !== display.width ||
-        trackingCanvas.height !== display.height
+        trackingCanvas.width !== trackingWidth ||
+        trackingCanvas.height !== trackingHeight
       ) {
-        trackingCanvas.width = display.width;
-        trackingCanvas.height = display.height;
+        trackingCanvas.width = trackingWidth;
+        trackingCanvas.height = trackingHeight;
+        previewTrackers.clear();
       }
-      trackingContext.drawImage(source, 0, 0, display.width, display.height);
+      trackingScale = trackingCanvas.width / display.width;
+      trackingContext.drawImage(
+        source,
+        0,
+        0,
+        trackingCanvas.width,
+        trackingCanvas.height,
+      );
+      lastTrackingFrame = trackingContext.getImageData(
+        0,
+        0,
+        trackingCanvas.width,
+        trackingCanvas.height,
+      );
       context.drawImage(source, 0, 0, display.width, display.height);
     } catch {
+      lastTrackingFrame = null;
       return;
     }
 
-    const now = source.currentTime;
+    const now = Number.isFinite(frameTime) ? frameTime : source.currentTime;
     for (const item of findings()) {
       if (
         item.box &&
