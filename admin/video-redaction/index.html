@@ -165,7 +165,9 @@
                 </label>
               </div>
               <div class="sub" style="margin-top:7px">Drag a mask to move it or drag its yellow corner to resize. Edits at a later frame create a new anchor from that point forward; earlier frames keep their placement. “Keep fixed” holds the box in one spot.</div>
-              <button class="btn secondary small" id="endCorrectionHere" type="button" style="margin-top:8px">End mask before this frame</button>\n              <div class="sub" style="margin-top:6px">Use this when the text has disappeared. Earlier masked frames stay intact; only this point forward is removed.</div>\n              <button class="btn secondary danger small" id="removeCorrection" type="button" style="margin-top:8px">Remove selected box entirely</button>
+              <button class="btn secondary small" id="endCorrectionHere" type="button" style="margin-top:8px">End mask before this frame</button>
+              <div class="sub" style="margin-top:6px">Use this when the text has disappeared. Earlier masked frames stay intact; only this point forward is removed.</div>
+              <button class="btn secondary danger small" id="removeCorrection" type="button" style="margin-top:8px">Remove selected box entirely</button>
             </div>
 
             <div class="correction-list" id="correctionList" style="margin-top:10px"></div>
@@ -181,7 +183,8 @@
 </div>
 
 <video id="source" class="sr" playsinline preload="metadata"></video>
-<script src="/admin/video-redaction/manual-tracker.js?v=20261001-frame-sync" defer></script>\n<script src="/admin/video-redaction/editor.js?v=20261001-frame-sync" defer></script>
+<script src="/admin/video-redaction/manual-tracker.js?v=20261001-exit-identity" defer></script>
+<script src="/admin/video-redaction/editor.js?v=20261001-exit-identity" defer></script>
 <!-- manual-tracking-deploy-refresh -->
 </body>
 </html>
