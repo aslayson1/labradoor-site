@@ -807,6 +807,14 @@
   function drawFrame() {
     if (!source.videoWidth || !display.width) return;
     try {
+      if (
+        trackingCanvas.width !== display.width ||
+        trackingCanvas.height !== display.height
+      ) {
+        trackingCanvas.width = display.width;
+        trackingCanvas.height = display.height;
+      }
+      trackingContext.drawImage(source, 0, 0, display.width, display.height);
       context.drawImage(source, 0, 0, display.width, display.height);
     } catch {
       return;
@@ -871,11 +879,17 @@
         const atAnchor =
           Math.abs(source.currentTime - item.startSeconds) <=
           Math.max(0.05, frameDuration() * 0.75);
-        const visible =
-          item.trackingMode === 'forward'
-            ? atAnchor
-            : visibleAt(item, source.currentTime);
-        return visible && pointInside(point, item.box);
+        if (item.trackingMode !== 'forward') {
+          return visibleAt(item, source.currentTime) && pointInside(point, item.box);
+        }
+        if (atAnchor && pointInside(point, item.box)) return true;
+        const tracker = previewTrackers.get(item.id);
+        return Boolean(
+          tracker &&
+            !tracker.lost &&
+            visibleAt(item, source.currentTime) &&
+            pointInside(point, tracker.box),
+        );
       });
   }
 
@@ -1100,6 +1114,32 @@
     renderCorrections();
     drawFrame();
   });
+  endCorrectionHere.addEventListener('click', () => {
+    const item = selectedCorrection();
+    if (!item || !Number.isFinite(source.currentTime)) return;
+    const stopBefore = Math.max(
+      item.startSeconds,
+      source.currentTime - Math.max(frameDuration(), 0.01),
+    );
+    if (stopBefore <= item.startSeconds + 0.001) {
+      setJobStatus(
+        'Move later in the video',
+        'The playhead needs to be after the mask starts before it can be ended.',
+        'warn',
+      );
+      return;
+    }
+    item.endSeconds = Math.min(item.endSeconds, stopBefore);
+    previewTrackers.delete(item.id);
+    setJobStatus(
+      'Mask ended at this point',
+      'Earlier frames keep this mask. This frame and later frames will no longer use it.',
+      'ok',
+    );
+    renderCorrections();
+    drawFrame();
+  });
+
   removeCorrection.addEventListener('click', () => {
     previewTrackers.delete(selectedCorrectionId);
     corrections = corrections.filter((item) => item.id !== selectedCorrectionId);
