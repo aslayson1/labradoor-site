@@ -824,12 +824,10 @@
         tracker.box = match.box;
         tracker.mismatchFrames = 0;
       } else {
-        if (match.score >= previewWeakMatch) {
-          // A weak-but-plausible frame can happen during scrolling/motion blur.
-          // Follow it briefly, but require the original visual identity to
-          // recover quickly or terminate this occurrence.
-          tracker.box = match.box;
-        }
+        // Never move a hand-placed mask on a weak match. Motion blur can make
+        // several nearby text regions look plausible for a frame or two.
+        // Hold the last confirmed position and require the exact identity to
+        // recover; otherwise end this occurrence instead of visibly drifting.
         tracker.mismatchFrames += 1;
         if (tracker.mismatchFrames >= previewLostFrameLimit) {
           tracker.lost = true;
