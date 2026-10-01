@@ -644,6 +644,11 @@
       tracker.confidence = match.score;
       tracker.lastTime = now;
 
+      if (match.exitedFrame) {
+        tracker.lost = true;
+        return null;
+      }
+
       if (match.strong) {
         const dx = match.box.x1 - previousBox.x1;
         const dy = match.box.y1 - previousBox.y1;
