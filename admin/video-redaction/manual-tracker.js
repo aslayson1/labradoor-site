@@ -441,33 +441,46 @@
       };
     }
 
-    // The uploaded 60fps phone recording moves by more than 60 full-resolution
-    // pixels in a single source frame during its fastest sheet animation.
-    // Browser frame callbacks can also skip one or more source frames while
-    // matching. Grow the search window from elapsed media time so a dropped
-    // callback cannot make the real target physically unreachable.
+    const fastSearch =
+      elapsedSeconds > 0.024 ||
+      Math.abs(expectedMotion.dx || 0) > width * 0.22 ||
+      Math.abs(expectedMotion.dy || 0) > height * 0.75;
+
+    // Keep ordinary motion tightly local. Only expand when elapsed media time
+    // or the established velocity says that one or more source frames may
+    // have been skipped.
     const skippedFrameAllowance = Math.max(
       0,
       elapsedSeconds - 1 / 60,
     ) * 3400;
-    const xRadius = Math.max(
-      46,
-      Math.min(
-        150,
-        width * 0.28 +
-          Math.abs(expectedMotion.dx || 0) * 1.25 +
-          skippedFrameAllowance,
-      ),
-    );
-    const yRadius = Math.max(
-      82,
-      Math.min(
-        190,
-        height * 2.0 +
-          Math.abs(expectedMotion.dy || 0) * 1.35 +
-          skippedFrameAllowance,
-      ),
-    );
+    const xRadius = fastSearch
+      ? Math.max(
+          46,
+          Math.min(
+            150,
+            width * 0.28 +
+              Math.abs(expectedMotion.dx || 0) * 1.25 +
+              skippedFrameAllowance,
+          ),
+        )
+      : Math.max(
+          10,
+          Math.min(30, width * 0.22 + Math.abs(expectedMotion.dx || 0) * 0.8),
+        );
+    const yRadius = fastSearch
+      ? Math.max(
+          82,
+          Math.min(
+            190,
+            height * 2.0 +
+              Math.abs(expectedMotion.dy || 0) * 1.35 +
+              skippedFrameAllowance,
+          ),
+        )
+      : Math.max(
+          16,
+          Math.min(46, height * 1.55 + Math.abs(expectedMotion.dy || 0) * 0.8),
+        );
 
     const minX = Math.max(0, Math.floor(predicted.x1 - xRadius));
     const maxX = Math.min(
@@ -479,11 +492,6 @@
       frame.height - height,
       Math.ceil(predicted.y1 + yRadius),
     );
-
-    const fastSearch =
-      elapsedSeconds > 0.024 ||
-      Math.abs(expectedMotion.dx || 0) > width * 0.22 ||
-      Math.abs(expectedMotion.dy || 0) > height * 0.75;
 
     function evaluate(x, y) {
       const candidate = { x1: x, y1: y, x2: x + width, y2: y + height };
