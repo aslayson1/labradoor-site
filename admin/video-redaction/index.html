@@ -60,7 +60,7 @@
           <div class="stage-card">
             <div class="stage">
               <canvas id="display"></canvas>
-              <div class="stage-hint" id="hint">After the first pass, drag a tight box around any missed text</div>
+              <div class="stage-hint" id="hint">Pause on private text and drag a tight box around it. Tracked masks follow its motion forward.</div>
             </div>
             <div class="timeline">
               <div class="time-row">
@@ -80,12 +80,12 @@
               <button class="btn" id="download" type="button">Download MP4</button>
             </div>
             <video id="result" controls playsinline></video>
-            <p class="output-note">Watch the full result before publishing. If anything was missed, seek the source above, draw a tight box, and reprocess the exact frame or range.</p>
+            <p class="output-note">Watch the full result before publishing. If a tracked mask loses the text, seek to that frame, add a new anchor box, and reprocess.</p>
           </section>
         </div>
 
         <aside class="panel">
-          <h3>Automatic protection</h3>
+          <h3>Protect private text</h3>
 
           <div class="section">
             <div class="label"><span>Private text to detect</span></div>
@@ -116,7 +116,7 @@
           </div>
 
           <div class="section actions">
-            <button class="btn yellow" id="process" type="button">Detect, protect, and verify</button>
+            <button class="btn secondary" id="process" type="button">Run automatic detection instead</button>
             <button class="btn secondary" id="replace" type="button">Choose another video</button>
             <div class="progress" id="progress">
               <div class="bar"><span id="progressBar"></span></div>
@@ -135,7 +135,7 @@
               <span>Manual frame corrections</span>
               <span id="correctionCount">0</span>
             </div>
-            <div class="sub">Seek to a leaked frame and drag directly over the text. New boxes default to that single frame so they stay aligned during fast scrolling.</div>
+            <div class="sub">Pause on the text and drag a tight box around it. New masks follow that region forward by default; set an end time if you want tracking to stop earlier.</div>
 
             <div id="selectionEditor" hidden>
               <div class="coords" style="margin-top:12px">
@@ -148,19 +148,29 @@
                 <label class="mini-field"><span>Start second</span><input class="text-input" id="startTime" type="number" min="0" step="0.01"></label>
                 <label class="mini-field"><span>End second</span><input class="text-input" id="endTime" type="number" min="0" step="0.01"></label>
               </div>
-              <label class="mini-field" style="margin-top:7px"><span>Type</span>
-                <select id="correctionKind">
-                  <option value="address">Address</option>
-                  <option value="owner_name">Owner name</option>
-                  <option value="phone">Phone number</option>
-                  <option value="email">Email address</option>
-                </select>
-              </label>
+              <div class="range-grid" style="margin-top:7px">
+                <label class="mini-field"><span>Type</span>
+                  <select id="correctionKind">
+                    <option value="address">Address</option>
+                    <option value="owner_name">Owner name</option>
+                    <option value="phone">Phone number</option>
+                    <option value="email">Email address</option>
+                  </select>
+                </label>
+                <label class="mini-field"><span>Motion</span>
+                  <select id="trackingMode">
+                    <option value="forward">Follow forward</option>
+                    <option value="static">Keep fixed</option>
+                  </select>
+                </label>
+              </div>
+              <div class="sub" style="margin-top:7px">The box is the anchor. “Follow forward” tracks vertical/horizontal motion and small scale changes until the end time or a scene change.</div>
               <button class="btn secondary danger small" id="removeCorrection" type="button" style="margin-top:8px">Remove selected box</button>
             </div>
 
             <div class="correction-list" id="correctionList" style="margin-top:10px"></div>
-            <button class="btn" id="applyCorrections" type="button" disabled style="width:100%;margin-top:10px">Reprocess corrections</button>
+            <button class="btn yellow" id="manualProcess" type="button" style="width:100%;margin-top:10px">Track &amp; mask selected text</button>
+            <button class="btn secondary" id="applyCorrections" type="button" disabled style="width:100%;margin-top:8px">Reprocess tracked masks</button>
           </div>
 
           <div class="beta"><b>Safety gate:</b> uncertain footage is held for review. The worker never substitutes unexplained black video and never releases a file that fails independent verification.</div>

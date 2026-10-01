@@ -19,6 +19,7 @@
   const scrub = byId('scrub');
   const timeLabel = byId('time');
   const play = byId('play');
+  const manualProcess = byId('manualProcess');
   const processButton = byId('process');
   const replaceButton = byId('replace');
   const progress = byId('progress');
@@ -35,6 +36,7 @@
   const startTime = byId('startTime');
   const endTime = byId('endTime');
   const correctionKind = byId('correctionKind');
+  const trackingMode = byId('trackingMode');
   const removeCorrection = byId('removeCorrection');
   const applyCorrections = byId('applyCorrections');
   const output = byId('output');
@@ -228,7 +230,7 @@
     replaceButton.disabled = false;
     jobStatus.hidden = true;
     reviewSection.hidden = true;
-    correctionSection.hidden = true;
+    correctionSection.hidden = !sourceFile;
     hideProgress();
     resetOutput();
     renderCorrections();
@@ -254,6 +256,7 @@
       }
       if (source.duration > 600.05) {
         setJobStatus('Video is too long', 'The current processing limit is 10 minutes.', 'warn');
+        manualProcess.disabled = true;
         processButton.disabled = true;
       }
 
@@ -261,6 +264,7 @@
       display.height = source.videoHeight;
       upload.hidden = true;
       workspace.hidden = false;
+      correctionSection.hidden = false;
       scrub.value = '0';
       source.currentTime = 0;
       updateTime();
@@ -436,7 +440,14 @@
     }
 
     for (const item of corrections) {
-      if (visibleAt(item, now) || item.id === selectedCorrectionId) {
+      const atAnchor =
+        Math.abs(now - item.startSeconds) <=
+        Math.max(0.05, frameDuration() * 0.75);
+      const visible =
+        item.trackingMode === 'forward'
+          ? atAnchor
+          : visibleAt(item, now);
+      if (visible) {
         drawBox(
           item.box,
           colors[item.kind] || '#ffcf32',
@@ -448,7 +459,7 @@
 
     const draft = draftBox();
     if (draft) drawBox(draft, '#ffcf32', true, false);
-    hint.hidden = !currentJob || busy || !terminalStatuses.has(currentJob.status);
+    hint.hidden = !sourceFile || busy;
   }
 
   function canvasPoint(event) {
@@ -478,11 +489,20 @@
     return corrections
       .slice()
       .reverse()
-      .find((item) => visibleAt(item, source.currentTime) && pointInside(point, item.box));
+      .find((item) => {
+        const atAnchor =
+          Math.abs(source.currentTime - item.startSeconds) <=
+          Math.max(0.05, frameDuration() * 0.75);
+        const visible =
+          item.trackingMode === 'forward'
+            ? atAnchor
+            : visibleAt(item, source.currentTime);
+        return visible && pointInside(point, item.box);
+      });
   }
 
   display.addEventListener('pointerdown', (event) => {
-    if (busy || !currentJob || !terminalStatuses.has(currentJob.status)) return;
+    if (busy || !sourceFile) return;
     const point = canvasPoint(event);
     const selected = selectedCorrection();
     const handleSize = Math.max(18, display.width / 55);
@@ -551,7 +571,8 @@
           id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
           kind: firstEnabledKind(),
           startSeconds: source.currentTime,
-          endSeconds: source.currentTime,
+          endSeconds: source.duration || source.currentTime,
+          trackingMode: 'forward',
           box,
         };
         corrections.push(item);
@@ -598,12 +619,17 @@
     startTime.max = String(source.duration || 0);
     endTime.max = String(source.duration || 0);
     correctionKind.value = item.kind;
+    trackingMode.value = item.trackingMode || 'static';
   }
 
   function renderCorrections() {
     correctionList.replaceChildren();
     correctionCount.textContent = String(corrections.length);
-    applyCorrections.disabled = busy || corrections.length === 0;
+    applyCorrections.disabled =
+      busy ||
+      corrections.length === 0 ||
+      !currentJob ||
+      !terminalStatuses.has(currentJob.status);
     updateSelectionEditor();
 
     for (const item of corrections) {
@@ -621,16 +647,18 @@
       frames.className = 'sub';
       const startFrame = currentFrameIndex(item.startSeconds);
       const endFrame = currentFrameIndex(item.endSeconds);
-      frames.textContent =
-        startFrame === endFrame
+      frames.textContent = totalFrames
+        ? startFrame === endFrame
           ? `Frame ${startFrame + 1}`
-          : `Frames ${startFrame + 1}–${endFrame + 1}`;
+          : `Frames ${startFrame + 1}–${endFrame + 1}`
+        : `Starts ${formatTime(item.startSeconds)}`;
       head.append(title, frames);
 
       const detail = document.createElement('p');
-      detail.textContent = `${formatTime(item.startSeconds)} to ${formatTime(
-        item.endSeconds,
-      )}`;
+      detail.textContent = [
+        `${formatTime(item.startSeconds)} to ${formatTime(item.endSeconds)}`,
+        item.trackingMode === 'forward' ? 'follows motion forward' : 'fixed position',
+      ].join(' · ');
 
       const actions = document.createElement('div');
       actions.className = 'correction-actions';
@@ -640,7 +668,10 @@
       edit.textContent = item.id === selectedCorrectionId ? 'Selected' : 'Edit box';
       edit.addEventListener('click', () => {
         selectedCorrectionId = item.id;
-        source.currentTime = (item.startSeconds + item.endSeconds) / 2;
+        source.currentTime =
+          item.trackingMode === 'forward'
+            ? item.startSeconds
+            : (item.startSeconds + item.endSeconds) / 2;
         renderCorrections();
         drawFrame();
       });
@@ -667,6 +698,16 @@
     const item = selectedCorrection();
     if (!item) return;
     item.kind = correctionKind.value;
+    renderCorrections();
+    drawFrame();
+  });
+  trackingMode.addEventListener('change', () => {
+    const item = selectedCorrection();
+    if (!item) return;
+    item.trackingMode = trackingMode.value;
+    if (item.trackingMode === 'forward' && item.endSeconds <= item.startSeconds) {
+      item.endSeconds = source.duration || item.startSeconds;
+    }
     renderCorrections();
     drawFrame();
   });
@@ -716,7 +757,7 @@
     );
   }
 
-  function redactionConfig() {
+  function redactionConfig(manualOnly = false) {
     return {
       pii_kinds: selectedKinds(),
       style: protectionStyle,
@@ -727,19 +768,25 @@
       minimum_tracking_confidence: 0.55,
       scene_cut_threshold: 0.42,
       all_person_names: false,
+      manual_only: manualOnly,
       require_independent_verifier: true,
     };
   }
 
   function setBusy(value) {
     busy = value;
+    manualProcess.disabled = value;
     processButton.disabled = value;
     replaceButton.disabled = false;
     replaceButton.textContent = value
       ? 'Cancel & choose another video'
       : 'Choose another video';
     fileInput.disabled = false;
-    applyCorrections.disabled = value || corrections.length === 0;
+    applyCorrections.disabled =
+      value ||
+      corrections.length === 0 ||
+      !currentJob ||
+      !terminalStatuses.has(currentJob.status);
     drawFrame();
   }
 
@@ -769,7 +816,7 @@
     return error;
   }
 
-  async function startUploadSession(config) {
+  async function startUploadSession(config, deferProcessing = false) {
     let response;
     try {
       response = await apiFetch('/v1/uploads', {
@@ -780,6 +827,7 @@
           content_type: sourceFile.type || 'application/octet-stream',
           total_bytes: sourceFile.size,
           config,
+          defer_processing: deferProcessing,
         }),
       });
     } catch (error) {
@@ -884,8 +932,8 @@
     throw lastError || new Error('The resumable upload stopped');
   }
 
-  async function uploadJob(config, version) {
-    const session = await startUploadSession(config);
+  async function uploadJob(config, version, deferProcessing = false) {
+    const session = await startUploadSession(config, deferProcessing);
 
     for (let partNumber = 0; partNumber < session.total_parts; partNumber += 1) {
       const startByte = partNumber * session.chunk_size;
@@ -921,6 +969,8 @@
       needs_review: 100,
       complete: 100,
       failed: 100,
+      cancelled: 100,
+      ready: 14,
     }[record.status];
     return Math.max(minimum || 14, reported);
   }
@@ -1161,7 +1211,7 @@
     setJobStatus('Preparing video', 'The original will upload directly to the private worker.');
 
     try {
-      currentJob = await uploadJob(redactionConfig(), version);
+      currentJob = await uploadJob(redactionConfig(false), version);
       if (version !== runVersion) return;
       updateJobProgress(currentJob);
       await pollJob(currentJob.id, version);
@@ -1244,7 +1294,8 @@
         findingIndex: index,
         kind: item.kind || firstEnabledKind(),
         startSeconds: seconds,
-        endSeconds: seconds,
+        endSeconds: source.duration || seconds,
+        trackingMode: 'forward',
         box: {
           x1: Number(item.box.x1),
           y1: Number(item.box.y1),
@@ -1260,6 +1311,73 @@
     drawFrame();
   }
 
+  function timedCorrectionPayload() {
+    return corrections.map((item) => ({
+      start_seconds: Math.max(0, Number(item.startSeconds) || 0),
+      end_seconds: Math.max(
+        Number(item.startSeconds) || 0,
+        Number(item.endSeconds) || 0,
+      ),
+      kind: item.kind,
+      text: 'manual tracked mask',
+      tracking_mode: item.trackingMode || 'forward',
+      box: {
+        x1: item.box.x1,
+        y1: item.box.y1,
+        x2: item.box.x2,
+        y2: item.box.y2,
+      },
+    }));
+  }
+
+  manualProcess.addEventListener('click', async () => {
+    if (!sourceFile || busy) return;
+    if (corrections.length === 0) {
+      setJobStatus(
+        'Draw at least one mask',
+        'Pause on the text, then drag a tight box around it.',
+        'warn',
+      );
+      return;
+    }
+
+    resetOutput();
+    currentReview = null;
+    totalFrames = 0;
+    reviewSection.hidden = true;
+    const version = ++runVersion;
+    setBusy(true);
+    showProgress(2, 'Preparing manual tracking…');
+    setJobStatus(
+      'Preparing tracked masks',
+      'The worker will follow each selected region from its anchor frame forward.',
+    );
+
+    try {
+      currentJob = await uploadJob(redactionConfig(true), version, true);
+      if (version !== runVersion) return;
+      if (currentJob.status !== 'ready') {
+        throw new Error('The private worker did not pause for manual masks');
+      }
+
+      showProgress(14, 'Starting motion tracking…');
+      const response = await apiFetch(
+        `/v1/jobs/${encodeURIComponent(currentJob.id)}/timed-corrections`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ corrections: timedCorrectionPayload() }),
+        },
+      );
+      if (!response.ok) throw new Error(await readError(response));
+      currentJob = await response.json();
+      updateJobProgress(currentJob);
+      await pollJob(currentJob.id, version);
+    } catch (error) {
+      if (version === runVersion) handleProcessingError(error);
+    }
+  });
+
   function correctionPayload() {
     if (!totalFrames || !source.duration) {
       throw new Error('Frame timing is unavailable for corrections');
@@ -1273,6 +1391,7 @@
         end_frame: endFrame,
         kind: item.kind,
         text: 'manual correction',
+        tracking_mode: item.trackingMode || 'static',
         box: {
           x1: item.box.x1,
           y1: item.box.y1,
