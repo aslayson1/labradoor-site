@@ -191,6 +191,10 @@ test('admin editor assets compile and use the server worker', () => {
   assert.match(editor, /retryDelays/);
   assert.doesNotMatch(editor, /new FormData/);
   assert.match(editor, /server connection problem/i);
+  assert.match(editor, /previewBoxFor/);
+  assert.match(editor, /searchPreviewBox/);
+  assert.match(editor, /applyPreviewProtection/);
+  assert.match(editor, /context\.filter = 'blur\(12px\)'/);
   assert.match(html, /automatic deletion within 24 hours/i);
   assert.doesNotMatch(html, /never uploaded|stay on this device/i);
 });

@@ -88,6 +88,9 @@
   let busy = false;
   let runVersion = 0;
   let animationFrame = 0;
+  const previewTrackers = new Map();
+  const previewScratch = document.createElement('canvas');
+  const previewScratchContext = previewScratch.getContext('2d');
 
   function formatTime(value) {
     if (!Number.isFinite(value)) return '00:00.00';
@@ -226,6 +229,7 @@
     selectedCorrectionId = null;
     busy = false;
     gesture = null;
+    previewTrackers.clear();
     processButton.disabled = false;
     replaceButton.disabled = false;
     jobStatus.hidden = true;
@@ -420,6 +424,293 @@
     };
   }
 
+  function clampPreviewBox(box) {
+    const width = Math.max(4, box.x2 - box.x1);
+    const height = Math.max(4, box.y2 - box.y1);
+    const x1 = Math.max(0, Math.min(display.width - width, box.x1));
+    const y1 = Math.max(0, Math.min(display.height - height, box.y1));
+    return {
+      x1,
+      y1,
+      x2: x1 + width,
+      y2: y1 + height,
+    };
+  }
+
+  function grayAt(data, width, x, y) {
+    const px = Math.max(0, Math.min(width - 1, Math.round(x)));
+    const py = Math.max(0, Math.min(data.height - 1, Math.round(y)));
+    const index = (py * width + px) * 4;
+    return (
+      data.data[index] * 0.299 +
+      data.data[index + 1] * 0.587 +
+      data.data[index + 2] * 0.114
+    );
+  }
+
+  function makePreviewTemplate(box) {
+    const x1 = Math.max(0, Math.floor(box.x1));
+    const y1 = Math.max(0, Math.floor(box.y1));
+    const width = Math.max(4, Math.min(display.width - x1, Math.ceil(box.x2 - box.x1)));
+    const height = Math.max(4, Math.min(display.height - y1, Math.ceil(box.y2 - box.y1)));
+    if (width < 4 || height < 4) return null;
+
+    let image;
+    try {
+      image = context.getImageData(x1, y1, width, height);
+    } catch {
+      return null;
+    }
+
+    const cols = 9;
+    const rows = 5;
+    const samples = [];
+    let sum = 0;
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        const fx = (col + 0.5) / cols;
+        const fy = (row + 0.5) / rows;
+        const value = grayAt(image, width, fx * (width - 1), fy * (height - 1));
+        samples.push({ fx, fy, value });
+        sum += value;
+      }
+    }
+    const mean = sum / samples.length;
+    const variance =
+      samples.reduce((total, sample) => total + (sample.value - mean) ** 2, 0) /
+      samples.length;
+    return {
+      samples,
+      mean,
+      deviation: Math.sqrt(Math.max(variance, 1)),
+      width: box.x2 - box.x1,
+      height: box.y2 - box.y1,
+    };
+  }
+
+  function candidateCorrelation(searchImage, searchOrigin, box, template) {
+    let candidateSum = 0;
+    const values = [];
+    for (const sample of template.samples) {
+      const x = box.x1 + sample.fx * (box.x2 - box.x1) - searchOrigin.x;
+      const y = box.y1 + sample.fy * (box.y2 - box.y1) - searchOrigin.y;
+      const value = grayAt(searchImage, searchImage.width, x, y);
+      values.push(value);
+      candidateSum += value;
+    }
+    const candidateMean = candidateSum / values.length;
+    let candidateVariance = 0;
+    let covariance = 0;
+    for (let index = 0; index < values.length; index += 1) {
+      const a = template.samples[index].value - template.mean;
+      const b = values[index] - candidateMean;
+      candidateVariance += b * b;
+      covariance += a * b;
+    }
+    const candidateDeviation = Math.sqrt(
+      Math.max(candidateVariance / values.length, 1),
+    );
+    return (
+      covariance /
+      values.length /
+      Math.max(1, template.deviation * candidateDeviation)
+    );
+  }
+
+  function searchPreviewBox(item, tracker, wideSearch = false) {
+    const current = tracker.box;
+    const width = current.x2 - current.x1;
+    const height = current.y2 - current.y1;
+    const xRadius = wideSearch
+      ? Math.min(display.width, Math.max(36, width * 2))
+      : Math.max(18, Math.min(72, width * 0.9));
+    const yRadius = wideSearch
+      ? display.height
+      : Math.max(42, Math.min(180, height * 5));
+
+    const searchX1 = Math.max(0, Math.floor(current.x1 - xRadius));
+    const searchY1 = wideSearch
+      ? 0
+      : Math.max(0, Math.floor(current.y1 - yRadius));
+    const searchX2 = Math.min(
+      display.width,
+      Math.ceil(current.x2 + xRadius),
+    );
+    const searchY2 = wideSearch
+      ? display.height
+      : Math.min(display.height, Math.ceil(current.y2 + yRadius));
+
+    let searchImage;
+    try {
+      searchImage = context.getImageData(
+        searchX1,
+        searchY1,
+        Math.max(1, searchX2 - searchX1),
+        Math.max(1, searchY2 - searchY1),
+      );
+    } catch {
+      return current;
+    }
+
+    const coarseStep = wideSearch ? 6 : 4;
+    let best = { box: current, score: -Infinity };
+    const minX = searchX1;
+    const maxX = Math.max(minX, searchX2 - width);
+    const minY = searchY1;
+    const maxY = Math.max(minY, searchY2 - height);
+
+    for (let y = minY; y <= maxY; y += coarseStep) {
+      for (let x = minX; x <= maxX; x += coarseStep) {
+        const candidate = { x1: x, y1: y, x2: x + width, y2: y + height };
+        const score = candidateCorrelation(
+          searchImage,
+          { x: searchX1, y: searchY1 },
+          candidate,
+          tracker.template,
+        );
+        if (score > best.score) best = { box: candidate, score };
+      }
+    }
+
+    const refine = 5;
+    const refineMinX = Math.max(minX, best.box.x1 - refine);
+    const refineMaxX = Math.min(maxX, best.box.x1 + refine);
+    const refineMinY = Math.max(minY, best.box.y1 - refine);
+    const refineMaxY = Math.min(maxY, best.box.y1 + refine);
+    for (let y = refineMinY; y <= refineMaxY; y += 1) {
+      for (let x = refineMinX; x <= refineMaxX; x += 1) {
+        const candidate = { x1: x, y1: y, x2: x + width, y2: y + height };
+        const score = candidateCorrelation(
+          searchImage,
+          { x: searchX1, y: searchY1 },
+          candidate,
+          tracker.template,
+        );
+        if (score > best.score) best = { box: candidate, score };
+      }
+    }
+
+    if (best.score < 0.18) return current;
+    tracker.confidence = best.score;
+    return clampPreviewBox(best.box);
+  }
+
+  function previewBoxFor(item, now) {
+    if (!visibleAt(item, now)) return null;
+    if (item.trackingMode !== 'forward') return item.box;
+
+    let tracker = previewTrackers.get(item.id);
+    const anchorWindow = Math.max(0.06, frameDuration() * 1.2);
+    const atAnchor = Math.abs(now - item.startSeconds) <= anchorWindow;
+
+    if (!tracker && atAnchor) {
+      const template = makePreviewTemplate(item.box);
+      if (template) {
+        tracker = {
+          template,
+          box: { ...item.box },
+          lastTime: now,
+          confidence: 1,
+        };
+        previewTrackers.set(item.id, tracker);
+      }
+    }
+    if (!tracker) return atAnchor ? item.box : null;
+
+    if (now < item.startSeconds - anchorWindow || now > item.endSeconds + anchorWindow) {
+      return null;
+    }
+
+    if (atAnchor) {
+      tracker.box = { ...item.box };
+      tracker.lastTime = now;
+      return tracker.box;
+    }
+
+    const delta = now - tracker.lastTime;
+    const jumped = delta < -0.03 || delta > 0.35;
+    if (delta > 0.004 || jumped) {
+      tracker.box = searchPreviewBox(item, tracker, jumped);
+      tracker.lastTime = now;
+    }
+    return tracker.box;
+  }
+
+  function applyPreviewProtection(box) {
+    const padding = Math.max(0, Number(byId('padding').value) || 0);
+    const x1 = Math.max(0, Math.floor(box.x1 - padding));
+    const y1 = Math.max(0, Math.floor(box.y1 - padding));
+    const x2 = Math.min(display.width, Math.ceil(box.x2 + padding));
+    const y2 = Math.min(display.height, Math.ceil(box.y2 + padding));
+    const width = Math.max(1, x2 - x1);
+    const height = Math.max(1, y2 - y1);
+
+    context.save();
+    context.beginPath();
+    context.rect(x1, y1, width, height);
+    context.clip();
+
+    if (protectionStyle === 'blackout') {
+      context.fillStyle = '#000';
+      context.fillRect(x1, y1, width, height);
+    } else if (protectionStyle === 'pixelate') {
+      const scale = Math.max(3, Math.round(Math.min(width, height) / 8));
+      previewScratch.width = Math.max(1, Math.ceil(width / scale));
+      previewScratch.height = Math.max(1, Math.ceil(height / scale));
+      previewScratchContext.imageSmoothingEnabled = true;
+      previewScratchContext.clearRect(
+        0,
+        0,
+        previewScratch.width,
+        previewScratch.height,
+      );
+      previewScratchContext.drawImage(
+        source,
+        x1,
+        y1,
+        width,
+        height,
+        0,
+        0,
+        previewScratch.width,
+        previewScratch.height,
+      );
+      context.imageSmoothingEnabled = false;
+      context.drawImage(
+        previewScratch,
+        0,
+        0,
+        previewScratch.width,
+        previewScratch.height,
+        x1,
+        y1,
+        width,
+        height,
+      );
+      context.imageSmoothingEnabled = true;
+    } else {
+      const bleed = Math.max(10, Math.round(Math.min(width, height) * 0.45));
+      const sx = Math.max(0, x1 - bleed);
+      const sy = Math.max(0, y1 - bleed);
+      const sx2 = Math.min(display.width, x2 + bleed);
+      const sy2 = Math.min(display.height, y2 + bleed);
+      context.filter = 'blur(12px)';
+      context.drawImage(
+        source,
+        sx,
+        sy,
+        sx2 - sx,
+        sy2 - sy,
+        sx,
+        sy,
+        sx2 - sx,
+        sy2 - sy,
+      );
+      context.filter = 'none';
+    }
+    context.restore();
+  }
+
   function drawFrame() {
     if (!source.videoWidth || !display.width) return;
     try {
@@ -440,21 +731,15 @@
     }
 
     for (const item of corrections) {
-      const atAnchor =
-        Math.abs(now - item.startSeconds) <=
-        Math.max(0.05, frameDuration() * 0.75);
-      const visible =
-        item.trackingMode === 'forward'
-          ? atAnchor
-          : visibleAt(item, now);
-      if (visible) {
-        drawBox(
-          item.box,
-          colors[item.kind] || '#ffcf32',
-          false,
-          item.id === selectedCorrectionId,
-        );
-      }
+      const previewBox = previewBoxFor(item, now);
+      if (!previewBox) continue;
+      applyPreviewProtection(previewBox);
+      drawBox(
+        previewBox,
+        colors[item.kind] || '#ffcf32',
+        false,
+        item.id === selectedCorrectionId,
+      );
     }
 
     const draft = draftBox();
@@ -552,10 +837,12 @@
       const x1 = Math.max(0, Math.min(display.width - width, point.x - gesture.offsetX));
       const y1 = Math.max(0, Math.min(display.height - height, point.y - gesture.offsetY));
       item.box = { x1, y1, x2: x1 + width, y2: y1 + height };
+      previewTrackers.delete(item.id);
     } else if (gesture.mode === 'resize') {
       const item = gesture.item;
       item.box.x2 = Math.max(item.box.x1 + 4, Math.min(display.width, point.x));
       item.box.y2 = Math.max(item.box.y1 + 4, Math.min(display.height, point.y));
+      previewTrackers.delete(item.id);
     }
 
     updateSelectionEditor();
@@ -577,6 +864,12 @@
         };
         corrections.push(item);
         selectedCorrectionId = item.id;
+        previewTrackers.delete(item.id);
+        setJobStatus(
+          'Live mask preview ready',
+          'Press Play to preview the blur following this text. Then use Track & mask selected text to render the final protected video.',
+          'ok',
+        );
       }
     }
     gesture = null;
@@ -688,6 +981,7 @@
     const end = Math.max(0, Math.min(source.duration, Number(endTime.value) || 0));
     item.startSeconds = Math.min(start, end);
     item.endSeconds = Math.max(start, end);
+    previewTrackers.delete(item.id);
     renderCorrections();
     drawFrame();
   }
@@ -698,6 +992,7 @@
     const item = selectedCorrection();
     if (!item) return;
     item.kind = correctionKind.value;
+    previewTrackers.delete(item.id);
     renderCorrections();
     drawFrame();
   });
@@ -705,6 +1000,7 @@
     const item = selectedCorrection();
     if (!item) return;
     item.trackingMode = trackingMode.value;
+    previewTrackers.delete(item.id);
     if (item.trackingMode === 'forward' && item.endSeconds <= item.startSeconds) {
       item.endSeconds = source.duration || item.startSeconds;
     }
@@ -712,6 +1008,7 @@
     drawFrame();
   });
   removeCorrection.addEventListener('click', () => {
+    previewTrackers.delete(selectedCorrectionId);
     corrections = corrections.filter((item) => item.id !== selectedCorrectionId);
     selectedCorrectionId = null;
     renderCorrections();
@@ -724,10 +1021,12 @@
       for (const sibling of document.querySelectorAll('#styles [data-style]')) {
         sibling.classList.toggle('on', sibling === button);
       }
+      drawFrame();
     });
   }
   byId('padding').addEventListener('input', () => {
     byId('paddingValue').textContent = `${byId('padding').value} px`;
+    drawFrame();
   });
   function detectionSensitivityLabel() {
     const sensitivity = Number(byId('confidence').value);
