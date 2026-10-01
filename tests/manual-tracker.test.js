@@ -98,6 +98,7 @@ test('frame-to-frame tracking follows a scrolling address instead of the button 
       {
         expectedMotion: motion,
         elapsedSeconds: 1 / 60,
+        minimumRecentCorrelation: 0.54,
         minimumAnchorCorrelation: 0.70,
         minimumCombinedScore: 0.60,
       },
@@ -142,6 +143,7 @@ test('tracking stays with one of two nearby moving text rows', () => {
   const match = tracker.findBestMatch(next, box, recent, anchor, {
     expectedMotion: { dx: 2, dy: -6 },
     occupied: [{ x1: 48, y1: 118, x2: 181, y2: 151 }],
+    minimumRecentCorrelation: 0.54,
     minimumAnchorCorrelation: 0.70,
     minimumCombinedScore: 0.60,
   });
@@ -262,6 +264,7 @@ test('fast 60fps UI motion remains reachable even when a browser callback is ski
   const match = tracker.findBestMatch(next, box, recent, anchor, {
     expectedMotion: { dx: 0, dy: -44 },
     elapsedSeconds: 3 / 60,
+    minimumRecentCorrelation: 0.54,
     minimumAnchorCorrelation: 0.70,
     minimumCombinedScore: 0.60,
   });
