@@ -72,6 +72,7 @@
     track_lost: 'Region tracking lost',
     scene_cut: 'Scene change',
     verification_hit: 'Verifier found private text',
+    outside_selection: 'Optional unselected text',
     missing_frame_plan: 'Frame plan missing',
     unverified_backend: 'Verifier unavailable',
     manual_review: 'Manual review',
@@ -1649,9 +1650,13 @@
         outputUrl = URL.createObjectURL(blob);
         result.src = outputUrl;
         output.hidden = false;
+        const manual = currentJob?.config?.manual_only || activeProcessingMode === 'manual';
+        const title = byId('outputTitle') || output.querySelector('strong');
+        if (title) title.textContent = manual ? 'Selected masks verified' : 'Verified protected video';
         const performance = performanceSummary();
         outputMeta.textContent = [
-          `${totalFrames.toLocaleString()} verified frames`,
+          `${totalFrames.toLocaleString()} checked frames`,
+          manual ? 'Only your selections are masked' : '',
           `${(blob.size / 1024 / 1024).toFixed(1)} MB MP4`,
           performance,
         ].filter(Boolean).join(' · ');
@@ -1678,8 +1683,9 @@
 
     if (currentJob.status === 'complete') {
       setJobStatus(
-        'Independent verification passed',
-        performanceSummary() ||
+        currentJob?.config?.manual_only ? 'Selected masks verified' : 'Independent verification passed',
+        [currentJob?.config?.manual_only ? 'Only your selections are masked. Other text may remain visible.' : '',
+          performanceSummary()].filter(Boolean).join(' · ') ||
           'The protected MP4 is available below. Review it before publishing.',
         'ok',
       );
@@ -1796,6 +1802,9 @@
 
   function renderReview() {
     const items = findings();
+    const title = byId('reviewTitle') || reviewSection.querySelector('.label span');
+    if (title) title.textContent = items.length && items.every((item) => item.reason === 'outside_selection')
+      ? 'Optional unselected text' : 'Frames needing attention';
     findingCount.textContent = String(items.length);
     reviewList.replaceChildren();
     reviewSection.hidden = items.length === 0;

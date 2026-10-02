@@ -23,7 +23,7 @@
     <div class="page-head">
       <div>
         <h1>Protect sensitive information</h1>
-        <p>Detect private text on every frame, verify the result, then correct any exact frame.</p>
+        <p>Place masks on the text you want to hide, then render and review the video.</p>
       </div>
       <div class="privacy"><i></i>Private processing · automatic deletion within 24 hours</div>
     </div>
@@ -74,7 +74,7 @@
           <section class="output" id="output" hidden>
             <div class="output-head">
               <div>
-                <strong>Verified protected video</strong>
+                <strong id="outputTitle">Selected masks verified</strong>
                 <div class="sub" id="outputMeta"></div>
               </div>
               <button class="btn" id="download" type="button">Download MP4</button>
@@ -121,7 +121,7 @@
           </div>
 
           <div class="section" id="reviewSection" hidden>
-            <div class="label"><span>Frames needing attention</span><span id="findingCount">0</span></div>
+            <div class="label"><span id="reviewTitle">Frames needing attention</span><span id="findingCount">0</span></div>
             <div class="review-list" id="reviewList"></div>
           </div>
 
@@ -170,7 +170,7 @@
             <button class="btn secondary" id="applyCorrections" type="button" disabled style="width:100%;margin-top:8px">Reprocess tracked masks</button>
           </div>
 
-          <div class="beta"><b>Safety gate:</b> uncertain footage is held for review. The worker never substitutes unexplained black video and never releases a file that fails independent verification.</div>
+          <div class="beta"><b>Manual mode:</b> your selections define what to hide. Other detected text is an optional warning. Selected masks still need independent verification before export.</div>
         </aside>
       </section>
     </section>
@@ -179,7 +179,7 @@
 
 <video id="source" class="sr" playsinline preload="metadata"></video>
 <script src="/admin/video-redaction/manual-tracker.js?v=20261001-fast-vertical-search" defer></script>
-<script src="/admin/video-redaction/editor.js?v=20261001-fast-vertical-search" defer></script>
+<script src="/admin/video-redaction/editor.js?v=20261002-manual-selection-scope" defer></script>
 <!-- manual-tracking-deploy-refresh -->
 </body>
 </html>
