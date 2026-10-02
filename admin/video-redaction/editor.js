@@ -1085,7 +1085,10 @@
     if (!totalFrames || !source.duration) return 0;
     return Math.max(
       0,
-      Math.min(totalFrames - 1, Math.round((seconds / source.duration) * totalFrames)),
+      // A paused video presents the frame whose timestamp is at or before
+      // currentTime. Rounding selects the next frame during fast motion and
+      // anchors export to different pixels than the hand-drawn preview.
+      Math.min(totalFrames - 1, Math.floor((seconds / source.duration) * totalFrames + 1e-6)),
     );
   }
 
