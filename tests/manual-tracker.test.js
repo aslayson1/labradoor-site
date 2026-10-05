@@ -43,6 +43,26 @@ function makeFrame(width = 240, height = 220, background = 20) {
   return { data, width, height };
 }
 
+test('a skipped callback can reconnect to original characters partly above the frame', () => {
+  const first = makeFrame(320, 260);
+  drawTextLikeRow(first, 55, 150);
+  const box = { x1: 52, y1: 145, x2: 181, y2: 164 };
+  const anchor = tracker.makeTemplate(first, box);
+  const next = makeFrame(320, 260);
+  drawTextLikeRow(next, 55, -2);
+  const options = { allowPartialIdentity: true, elapsedSeconds: 1.1 };
+  const match = tracker.findBestMatch(next, box, anchor, anchor, options);
+  assert.equal(match.strong, true);
+  assert.equal(match.partialIdentity, true);
+  assert.equal(match.exitingFrame, true);
+  assert.ok(Math.abs(match.box.y1 + 7) <= 1);
+
+  const replacement = makeFrame(320, 260);
+  drawTextLikeRow(replacement, 55, -2, 1);
+  assert.equal(tracker.findBestMatch(replacement, box, anchor, anchor, options).strong, false);
+  assert.equal(tracker.findBestMatch(makeFrame(320, 260), box, anchor, anchor, options).strong, false);
+});
+
 function fillRect(frame, x, y, width, height, value) {
   const x1 = Math.max(0, Math.floor(x));
   const y1 = Math.max(0, Math.floor(y));

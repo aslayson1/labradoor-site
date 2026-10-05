@@ -591,9 +591,10 @@
       frame.width - width,
       Math.ceil(predicted.x1 + xRadius),
     );
-    const minY = Math.max(0, Math.floor(predicted.y1 - yRadius));
+    const edgeAllowance = options.allowPartialIdentity ? height * 0.65 : 0;
+    const minY = Math.max(-edgeAllowance, Math.floor(predicted.y1 - yRadius));
     const maxY = Math.min(
-      frame.height - height,
+      frame.height - height + edgeAllowance,
       Math.ceil(predicted.y1 + yRadius),
     );
 
@@ -650,6 +651,12 @@
           const anchorPart = anchorTemplate.identityParts[part];
           const recentPart = recentTemplate.identityParts?.[part];
           if (!anchorPart) continue;
+          // Only compare original characters that are actually in the frame;
+          // clamped pixels beyond an edge are not evidence of identity.
+          if (anchorPart.fingerprint.some(sample => {
+            const py = candidate.y1 + sample.fy * height;
+            return py < 0 || py >= frame.height;
+          })) continue;
           const original = scoreDenseCorrelation(frame, candidate, anchorPart);
           const previous = scoreDenseCorrelation(frame, candidate, recentPart);
           const originalEdges = scoreForegroundEdges(frame, candidate, anchorPart);
@@ -692,7 +699,9 @@
     }
     function result(candidate) {
       return {
-        ...candidate, strong: confirmed(candidate), exitingFrame: false, exitedFrame: false,
+        ...candidate, strong: confirmed(candidate),
+        exitingFrame: candidate.partialIdentity && visibleFraction(candidate.box, frame.width, frame.height) < 0.98,
+        exitedFrame: false,
         predicted, predictedVisibleFraction,
         movement: Math.hypot(candidate.box.x1 - currentBox.x1, candidate.box.y1 - currentBox.y1),
         searchRadiusX: xRadius, searchRadiusY: yRadius,
