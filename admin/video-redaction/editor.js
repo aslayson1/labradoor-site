@@ -572,7 +572,18 @@
           dy: expectedMotion.dy * trackingScale,
         },
         elapsedSeconds: delta,
-        minimumAnchorCorrelation: 0.82,
+        // Keep the first few presented frames locked tightly to the exact
+        // hand-drawn pixels. After the track is established, prefer continuity
+        // with the immediately previous confirmed frame while retaining the
+        // original selection as a softer identity guard. This tolerates normal
+        // compression/antialiasing/motion-blur changes without letting a new
+        // row of text inherit the mask.
+        minimumRecentCorrelation:
+          tracker.confirmedFrames >= 4 ? 0.82 : 0.70,
+        minimumAnchorCorrelation:
+          tracker.confirmedFrames >= 4 ? 0.50 : 0.82,
+        minimumCombinedScore:
+          tracker.confirmedFrames >= 4 ? 0.70 : 0.60,
       },
     );
     return {
@@ -596,6 +607,7 @@
       lastDelta: 0,
       confidence: 1,
       mismatchFrames: 0,
+      confirmedFrames: 0,
       lost: false,
       hasMotion: false,
       motionX: 0,
@@ -711,6 +723,7 @@
         );
         tracker.recentTemplate =
           makeRecentTemplate(tracker.box) || tracker.recentTemplate;
+        tracker.confirmedFrames += 1;
         tracker.mismatchFrames = 0;
       } else {
         // Never move on an uncertain match. Keep the last confirmed box for
