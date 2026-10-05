@@ -96,6 +96,8 @@
   let runVersion = 0;
   let animationFrame = 0;
   let animationFrameKind = '';
+  let presentedMediaTime = null;
+  let displayedFrameTime = 0;
   let lastTrackingFrame = null;
   let trackingScale = 1;
   const previewTrackers = new Map();
@@ -298,6 +300,8 @@
       );
     };
 
+    presentedMediaTime = null;
+    displayedFrameTime = 0;
     source.src = sourceUrl;
     source.load();
   }
@@ -362,6 +366,7 @@
     const tick = (_timestamp, metadata) => {
       updateTime();
       const mediaTime = Number(metadata?.mediaTime);
+      if (Number.isFinite(mediaTime)) presentedMediaTime = mediaTime;
       drawFrame(Number.isFinite(mediaTime) ? mediaTime : source.currentTime);
       if (!source.paused && !source.ended) {
         scheduleSourceFrame(tick);
@@ -372,8 +377,11 @@
     // moving, advance tracking only when the browser presents a new video
     // frame rather than on every display refresh.
     updateTime();
-    drawFrame(source.currentTime);
-    if (!source.paused && !source.ended) {
+    drawFrame();
+    // A seek also presents a new frame while paused. Capture its actual PTS
+    // so a hand-drawn box is exported against the same decoded pixels.
+    if (typeof source.requestVideoFrameCallback === 'function' ||
+        (!source.paused && !source.ended)) {
       scheduleSourceFrame(tick);
     }
   }
@@ -402,6 +410,8 @@
     animateSource();
   });
   source.addEventListener('seeking', () => {
+    presentedMediaTime = null;
+    animateSource();
     for (const tracker of previewTrackers.values()) tracker.seeked = true;
   });
   source.addEventListener('seeked', animateSource);
@@ -821,7 +831,7 @@
     context.restore();
   }
 
-  function drawFrame(frameTime = source.currentTime) {
+  function drawFrame(frameTime = presentedMediaTime ?? source.currentTime) {
     if (!source.videoWidth || !display.width) return;
     try {
       const maxTrackingDimension = 1280;
@@ -866,6 +876,7 @@
     }
 
     const now = Number.isFinite(frameTime) ? frameTime : source.currentTime;
+    displayedFrameTime = now;
     for (const item of findings()) {
       if (
         item.box &&
@@ -972,8 +983,8 @@
     drawFrame();
     const point = canvasPoint(event);
     const selected = selectedCorrection();
-    const selectedBox = selected && visibleAt(selected, source.currentTime)
-      ? previewBoxFor(selected, source.currentTime)
+    const selectedBox = selected && visibleAt(selected, displayedFrameTime)
+      ? previewBoxFor(selected, displayedFrameTime)
       : null;
     const handleSize = Math.max(18, display.width / 55);
 
@@ -985,18 +996,18 @@
         mode: 'resize',
         item: selected,
         displayBox: { ...selectedBox },
-        atTime: source.currentTime,
+        atTime: displayedFrameTime,
       };
     } else {
       const hit = correctionAt(point);
       if (hit) {
-        const box = previewBoxFor(hit, source.currentTime) || hit.box;
+        const box = previewBoxFor(hit, displayedFrameTime) || hit.box;
         selectedCorrectionId = hit.id;
         gesture = {
           mode: 'move',
           item: hit,
           displayBox: { ...box },
-          atTime: source.currentTime,
+          atTime: displayedFrameTime,
           offsetX: point.x - box.x1,
           offsetY: point.y - box.y1,
         };
@@ -1008,6 +1019,7 @@
           startY: point.y,
           currentX: point.x,
           currentY: point.y,
+          atTime: displayedFrameTime,
         };
       }
     }
@@ -1063,8 +1075,8 @@
         const item = {
           id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
           kind: firstEnabledKind(),
-          startSeconds: source.currentTime,
-          endSeconds: source.duration || source.currentTime,
+          startSeconds: gesture.atTime,
+          endSeconds: source.duration || displayedFrameTime,
           trackingMode: 'forward',
           box,
         };
@@ -1074,7 +1086,7 @@
         // Capture the exact hand-drawn region as the anchor immediately.
         // This prevents the first preview redraw from searching and jumping
         // to another nearby UI feature before playback has advanced.
-        resetPreviewTracker(item, source.currentTime);
+        resetPreviewTracker(item, gesture.atTime);
         setJobStatus(
           'Live mask preview ready',
           'Press Play to preview the blur following this text. Then use Track & mask selected text to render the final protected video.',
