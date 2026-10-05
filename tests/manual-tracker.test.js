@@ -43,6 +43,24 @@ function makeFrame(width = 240, height = 220, background = 20) {
   return { data, width, height };
 }
 
+test('a fast dismissing sheet stays reachable across a skipped presented frame', () => {
+  const first = makeFrame(320, 640);
+  drawTextLikeRow(first, 55, 200);
+  const box = { x1: 52, y1: 195, x2: 181, y2: 214 };
+  const anchor = tracker.makeTemplate(first, box);
+  const next = makeFrame(320, 640);
+  drawTextLikeRow(next, 55, 460);
+  const options = { elapsedSeconds: 0.1, allowPartialIdentity: true };
+  const match = tracker.findBestMatch(next, box, anchor, anchor, options);
+  assert.equal(match.strong, true);
+  assert.ok(Math.abs(match.box.y1 - 455) <= 1);
+
+  const different = makeFrame(320, 640);
+  drawTextLikeRow(different, 55, 460, 1);
+  assert.equal(tracker.findBestMatch(different, box, anchor, anchor, options).strong, false);
+  assert.equal(tracker.findBestMatch(makeFrame(320, 640), box, anchor, anchor, options).strong, false);
+});
+
 test('a skipped callback can reconnect to original characters partly above the frame', () => {
   const first = makeFrame(320, 260);
   drawTextLikeRow(first, 55, 150);

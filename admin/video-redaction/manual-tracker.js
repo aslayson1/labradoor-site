@@ -575,7 +575,7 @@
       ? Math.max(
           82,
           Math.min(
-            190,
+            Math.max(190, frame.height * 0.55),
             height * 2.0 +
               Math.abs(expectedMotion.dy || 0) * 1.35 +
               skippedFrameAllowance,
