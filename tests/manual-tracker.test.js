@@ -344,3 +344,60 @@ test('cached dense search preserves RGB sampling across translations and phases'
     assert.ok(Math.abs(tracker.scoreDenseCorrelation(next, box, template) - expected) < 1e-6);
   }
 });
+
+
+test('established tracking tolerates rasterization drift without accepting a new target', () => {
+  function drawRasterizedTarget(frame, x, y, edgeShift) {
+    fillRect(frame, x - 8, y - 8, 126, 38, 68);
+    const widths = [9, 5, 12, 7, 10, 6, 13, 8];
+    let cursor = x;
+    for (let i = 0; i < widths.length; i += 1) {
+      const width = widths[i];
+      const shift = i % 2 ? edgeShift : 0;
+      fillRect(frame, cursor + shift, y, width, 3, 225);
+      fillRect(frame, cursor + (i % 2) + shift, y + 7, Math.max(3, width - 2), 3, 205);
+      if (i % 3 === 0) fillRect(frame, cursor + 2 + shift, y + 2, 2, 8, 235);
+      cursor += width + 4;
+    }
+  }
+
+  const original = makeFrame(300, 220);
+  drawRasterizedTarget(original, 64, 92, 0);
+  const box = { x1: 58, y1: 82, x2: 190, y2: 116 };
+  const anchor = tracker.makeTemplate(original, box, { paddingRatio: 0.08 });
+
+  // Same text after a different rasterization/compression phase. The exact
+  // original pixels are no longer a perfect match, but a confirmed recent
+  // frame remains an excellent predictor of the same target.
+  const previous = makeFrame(300, 220);
+  drawRasterizedTarget(previous, 64, 88, 2);
+  const previousBox = { x1: 58, y1: 78, x2: 190, y2: 112 };
+  const recent = tracker.makeTemplate(previous, previousBox, { paddingRatio: 0.20 });
+
+  const current = makeFrame(300, 220);
+  drawRasterizedTarget(current, 64, 83, 2);
+  const strict = tracker.findBestMatch(current, previousBox, recent, anchor, {
+    expectedMotion: { dx: 0, dy: -5 },
+    minimumRecentCorrelation: 0.70,
+    minimumAnchorCorrelation: 0.82,
+    minimumCombinedScore: 0.60,
+  });
+  const adaptive = tracker.findBestMatch(current, previousBox, recent, anchor, {
+    expectedMotion: { dx: 0, dy: -5 },
+    minimumRecentCorrelation: 0.82,
+    minimumAnchorCorrelation: 0.50,
+    minimumCombinedScore: 0.70,
+  });
+
+  assert.ok(
+    strict.anchorCorrelation < 0.82,
+    `test must exercise original-template drift: ${JSON.stringify(strict)}`,
+  );
+  assert.equal(strict.strong, false);
+  assert.equal(
+    adaptive.strong,
+    true,
+    `established recent identity should carry the same text: ${JSON.stringify(adaptive)}`,
+  );
+  assert.ok(Math.abs(adaptive.box.y1 - 73) <= 2);
+});
