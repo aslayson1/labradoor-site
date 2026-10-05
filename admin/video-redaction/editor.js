@@ -403,7 +403,10 @@
   });
   source.addEventListener('pause', () => {
     play.textContent = 'Play';
-    animateSource();
+    // Keep the pending presentation callback: it carries the final paused
+    // frame's PTS. Cancelling it can redraw new pixels with an old timestamp.
+    if (animationFrameKind === 'video' && animationFrame) updateTime();
+    else animateSource();
   });
   source.addEventListener('ended', () => {
     play.textContent = 'Play';

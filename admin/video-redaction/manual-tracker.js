@@ -583,7 +583,7 @@
         )
       : Math.max(
           16,
-          Math.min(46, height * 1.55 + Math.abs(expectedMotion.dy || 0) * 0.8),
+          Math.min(110, height * 2.2 + Math.abs(expectedMotion.dy || 0) * 0.8),
         );
 
     const minX = Math.max(0, Math.floor(predicted.x1 - xRadius));
@@ -659,7 +659,8 @@
           })) continue;
           const original = scoreDenseCorrelation(frame, candidate, anchorPart);
           const previous = scoreDenseCorrelation(frame, candidate, recentPart);
-          const originalEdges = scoreForegroundEdges(frame, candidate, anchorPart);
+          const originalEdges = original >= 0.85
+            ? scoreForegroundEdges(frame, candidate, anchorPart) : 0;
           if ((original >= 0.94 && previous >= 0.70) ||
               (original >= 0.85 && originalEdges >= 0.80)) {
             partialIdentity = true;

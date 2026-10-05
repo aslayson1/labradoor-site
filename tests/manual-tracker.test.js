@@ -4,6 +4,21 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const tracker = require('../admin/video-redaction/manual-tracker');
 
+test('the first entering popup frame can move before a motion estimate exists', () => {
+  const first = makeFrame(320, 640);
+  drawTextLikeRow(first, 55, 550);
+  const box = { x1: 52, y1: 545, x2: 181, y2: 564 };
+  const anchor = tracker.makeTemplate(first, box);
+  const next = makeFrame(320, 640);
+  drawTextLikeRow(next, 55, 510);
+  const match = tracker.findBestMatch(next, box, anchor, anchor, {
+    elapsedSeconds: 1 / 60,
+    expectedMotion: { dx: 0, dy: 0 },
+  });
+  assert.equal(match.strong, true);
+  assert.ok(Math.abs(match.box.y1 - 505) <= 1);
+});
+
 test('an established selection follows its original exposed characters behind an overlay', () => {
   const first = makeFrame(320, 260);
   drawTextLikeRow(first, 55, 150);
