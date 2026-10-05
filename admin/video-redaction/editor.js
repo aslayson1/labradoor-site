@@ -670,7 +670,7 @@
     // only an actual timeline seek invalidates that continuity.
     const seeked = tracker.seeked;
     tracker.seeked = false;
-    const jumped = delta < -0.02 || (seeked && delta > 0.35);
+    const jumped = seeked && (delta < -0.02 || delta > 0.35);
     if (jumped) {
       // A seek has no reliable previous-frame motion. Do not guess or scan
       // broadly for a lookalike elsewhere on screen.
