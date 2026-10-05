@@ -572,7 +572,9 @@
           dy: expectedMotion.dy * trackingScale,
         },
         elapsedSeconds: delta,
-        allowPartialIdentity: tracker.confirmedFrames >= 4,
+        // The hand-drawn original and one independent full identity match
+        // establish this occurrence even when expensive callbacks skip frames.
+        allowPartialIdentity: tracker.confirmedFrames >= 1,
         // Keep the first few presented frames locked tightly to the exact
         // hand-drawn pixels. After the track is established, prefer continuity
         // with the immediately previous confirmed frame while retaining the
