@@ -572,6 +572,7 @@
           dy: expectedMotion.dy * trackingScale,
         },
         elapsedSeconds: delta,
+        allowPartialIdentity: tracker.confirmedFrames >= 4,
         // Keep the first few presented frames locked tightly to the exact
         // hand-drawn pixels. After the track is established, prefer continuity
         // with the immediately previous confirmed frame while retaining the
@@ -721,8 +722,11 @@
           display.width,
           display.height,
         );
-        tracker.recentTemplate =
-          makeRecentTemplate(tracker.box) || tracker.recentTemplate;
+        // An occluding overlay must never become the selected identity.
+        if (!match.partialIdentity) {
+          tracker.recentTemplate =
+            makeRecentTemplate(tracker.box) || tracker.recentTemplate;
+        }
         tracker.confirmedFrames += 1;
         tracker.mismatchFrames = 0;
       } else {

@@ -4,6 +4,33 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const tracker = require('../admin/video-redaction/manual-tracker');
 
+test('an established selection follows its original exposed characters behind an overlay', () => {
+  const first = makeFrame(320, 260);
+  drawTextLikeRow(first, 55, 150);
+  const box = { x1: 52, y1: 145, x2: 181, y2: 164 };
+  const anchor = tracker.makeTemplate(first, box);
+  const next = makeFrame(320, 260);
+  drawTextLikeRow(next, 55, 90);
+  fillRect(next, 100, 70, 90, 50, 0);
+  const match = tracker.findBestMatch(next, box, anchor, anchor, {
+    allowPartialIdentity: true,
+    elapsedSeconds: 0.1,
+    expectedMotion: { dx: 0, dy: -60 },
+  });
+  assert.equal(match.strong, true);
+  assert.equal(match.partialIdentity, true);
+  assert.ok(Math.abs(match.box.y1 - 85) <= 1);
+
+  const replaced = makeFrame(320, 260);
+  drawTextLikeRow(replaced, 55, 90, 1);
+  fillRect(replaced, 100, 70, 90, 50, 0);
+  const wrong = tracker.findBestMatch(replaced, match.box, anchor, anchor, {
+    allowPartialIdentity: true,
+    elapsedSeconds: 1 / 30,
+  });
+  assert.equal(wrong.strong, false);
+});
+
 function makeFrame(width = 240, height = 220, background = 20) {
   const data = new Uint8ClampedArray(width * height * 4);
   for (let i = 0; i < width * height; i += 1) {

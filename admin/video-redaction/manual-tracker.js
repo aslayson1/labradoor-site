@@ -150,11 +150,30 @@
     const foregroundSamples = fingerprint.filter(sample =>
       sample.value > fingerprintMean + fingerprintDeviation * 0.35 && sample.magnitude >= 28);
 
+    // Immutable, textured portions of the selected characters can remain
+    // visible when a fixed overlay covers the middle of the selection.
+    const identityParts = [
+      sample => sample.fx < 0.30,
+      sample => sample.fx > 0.70,
+      sample => sample.fy < 0.35,
+      sample => sample.fy > 0.65,
+    ].map(select => {
+      const part = fingerprint.filter(select);
+      const mean = part.reduce((sum, sample) => sum + sample.value, 0) / part.length;
+      const deviation = Math.sqrt(part.reduce((sum, sample) => sum + (sample.value - mean) ** 2, 0) / part.length);
+      return deviation >= 12 && part.filter(sample => sample.magnitude >= 28).length >= 12
+        ? { fingerprint: part, fingerprintMean: mean, foregroundSamples: foregroundSamples.filter(select) }
+        : null;
+    });
+
     return {
       samples,
       identitySamples,
       fingerprint,
       foregroundSamples,
+      identityParts,
+      phaseX: box.x1 - Math.floor(box.x1),
+      phaseY: box.y1 - Math.floor(box.y1),
       fingerprintMean,
       fingerprintDeviation,
       mean,
@@ -622,9 +641,29 @@
       const collisionPenalty =
         overlap >= 0.55 ? 0.60 : overlap >= 0.2 ? 0.30 : 0;
 
+      let partialIdentity = false;
+      let partialScore = 0;
+      if (options.allowPartialIdentity && overlap < 0.2 &&
+          (recentCorrelation < (options.minimumRecentCorrelation || 0.70) ||
+           anchorCorrelation < (options.minimumAnchorCorrelation || 0.82))) {
+        for (let part = 0; part < (anchorTemplate.identityParts || []).length; part++) {
+          const anchorPart = anchorTemplate.identityParts[part];
+          const recentPart = recentTemplate.identityParts?.[part];
+          if (!anchorPart) continue;
+          const original = scoreDenseCorrelation(frame, candidate, anchorPart);
+          const previous = scoreDenseCorrelation(frame, candidate, recentPart);
+          const originalEdges = scoreForegroundEdges(frame, candidate, anchorPart);
+          if ((original >= 0.94 && previous >= 0.70) ||
+              (original >= 0.85 && originalEdges >= 0.80)) {
+            partialIdentity = true;
+            partialScore = Math.max(partialScore, original * 0.7 + previous * 0.3,
+              originalEdges);
+          }
+        }
+      }
+
       const score =
-        recentCorrelation * 0.70 +
-        anchorCorrelation * 0.30 -
+        Math.max(recentCorrelation * 0.70 + anchorCorrelation * 0.30, partialScore) -
         continuityPenalty -
         collisionPenalty;
 
@@ -636,19 +675,20 @@
         recentCorrelation,
         anchorCorrelation,
         denseAnchorCorrelation,
+        partialIdentity,
       };
     }
 
     // Preserve the subpixel sampling phase of a hand-drawn box. Snapping
     // candidates to integer origins can change which thin glyph pixels are
     // sampled even when the text itself has not changed.
-    const phaseX = currentBox.x1 - Math.floor(currentBox.x1);
-    const phaseY = currentBox.y1 - Math.floor(currentBox.y1);
+    const phaseX = anchorTemplate.phaseX ?? (currentBox.x1 - Math.floor(currentBox.x1));
+    const phaseY = anchorTemplate.phaseY ?? (currentBox.y1 - Math.floor(currentBox.y1));
 
     function confirmed(candidate) {
-      return candidate.recentCorrelation >= (options.minimumRecentCorrelation || 0.70) &&
+      return candidate.partialIdentity || (candidate.recentCorrelation >= (options.minimumRecentCorrelation || 0.70) &&
         candidate.anchorCorrelation >= (options.minimumAnchorCorrelation || 0.82) &&
-        candidate.score >= (options.minimumCombinedScore || 0.60);
+        candidate.score >= (options.minimumCombinedScore || 0.60));
     }
     function result(candidate) {
       return {
