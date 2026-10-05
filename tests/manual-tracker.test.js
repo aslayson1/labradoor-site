@@ -370,12 +370,12 @@ test('established tracking tolerates rasterization drift without accepting a new
   // original pixels are no longer a perfect match, but a confirmed recent
   // frame remains an excellent predictor of the same target.
   const previous = makeFrame(300, 220);
-  drawRasterizedTarget(previous, 64, 88, 2);
+  drawRasterizedTarget(previous, 64, 88, 4);
   const previousBox = { x1: 58, y1: 78, x2: 190, y2: 112 };
   const recent = tracker.makeTemplate(previous, previousBox, { paddingRatio: 0.20 });
 
   const current = makeFrame(300, 220);
-  drawRasterizedTarget(current, 64, 83, 2);
+  drawRasterizedTarget(current, 64, 83, 4);
   const strict = tracker.findBestMatch(current, previousBox, recent, anchor, {
     expectedMotion: { dx: 0, dy: -5 },
     minimumRecentCorrelation: 0.70,
