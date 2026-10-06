@@ -68,6 +68,35 @@
                 <input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Video position">
                 <span class="time" id="time">00:00.00 / 00:00.00</span>
               </div>
+
+              <div class="edit-panel" id="editPanel">
+                <div class="edit-head">
+                  <div>
+                    <strong>Trim &amp; split</strong>
+                    <span id="segmentLabel">Full video</span>
+                  </div>
+                  <span id="editDuration">00:00.00 kept</span>
+                </div>
+                <div class="edit-track" id="editTrack" aria-label="Kept video segments">
+                  <div class="edit-playhead" id="editPlayhead"></div>
+                </div>
+                <div class="trim-controls">
+                  <label>
+                    <span>Selected start <b id="trimStartValue">00:00.00</b></span>
+                    <input id="trimStart" type="range" min="0" max="1000" value="0" step="0.01" aria-label="Trim selected segment start">
+                  </label>
+                  <label>
+                    <span>Selected end <b id="trimEndValue">00:00.00</b></span>
+                    <input id="trimEnd" type="range" min="0" max="1000" value="1000" step="0.01" aria-label="Trim selected segment end">
+                  </label>
+                </div>
+                <div class="edit-actions">
+                  <button class="btn secondary small" id="splitClip" type="button">✂ Split at playhead</button>
+                  <button class="btn secondary small danger" id="deleteClip" type="button">Delete segment</button>
+                  <button class="btn secondary small" id="undoEdit" type="button">Undo</button>
+                  <button class="btn secondary small" id="resetEdits" type="button">Reset</button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -179,7 +208,7 @@
 
 <video id="source" class="sr" playsinline preload="metadata"></video>
 <script src="/admin/video-redaction/manual-tracker.js?v=20261005-opening-motion" defer></script>
-<script src="/admin/video-redaction/editor.js?v=20261005-opening-motion" defer></script>
+<script src="/admin/video-redaction/editor.js?v=20261006-trim-split" defer></script>
 <!-- manual-tracking-deploy-refresh -->
 </body>
 </html>
