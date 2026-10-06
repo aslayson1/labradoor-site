@@ -58,8 +58,12 @@
   const download = byId('download');
   const hint = byId('hint');
   const ManualTracker = window.LabradoorManualTracker;
+  const VideoEdits = window.LabradoorVideoEdits;
   if (!ManualTracker) {
     throw new Error('Manual tracking engine failed to load');
+  }
+  if (!VideoEdits) {
+    throw new Error('Video edit timeline engine failed to load');
   }
 
   const colors = {
@@ -384,23 +388,16 @@
     return editSegments.find((segment) => segment.id === selectedSegmentId) || null;
   }
 
+  function editTimelineEpsilon() {
+    return Math.max(0.002, frameDuration() * 0.45);
+  }
+
   function editSegmentAt(time) {
-    const epsilon = Math.max(0.002, frameDuration() * 0.45);
-    return (
-      sortedEditSegments().find(
-        (segment) =>
-          time >= segment.start - epsilon && time < segment.end - epsilon,
-      ) || null
-    );
+    return VideoEdits.segmentAt(editSegments, time, editTimelineEpsilon());
   }
 
   function nextEditSegment(time) {
-    const epsilon = Math.max(0.002, frameDuration() * 0.45);
-    return (
-      sortedEditSegments().find(
-        (segment) => segment.start > time + epsilon,
-      ) || null
-    );
+    return VideoEdits.nextSegment(editSegments, time, editTimelineEpsilon());
   }
 
   function keptEditDuration() {
@@ -725,17 +722,18 @@
   }
 
   function enforceEditedPlayback(time) {
-    if (source.paused || !editSegments.length) return false;
+    const decision = VideoEdits.playbackDecision({
+      segments: editSegments,
+      time,
+      epsilon: editTimelineEpsilon(),
+      paused: source.paused,
+      seeking: source.seeking,
+      pendingSeek: pendingEditSeek !== null,
+    });
 
-    // A seek across a deleted gap can still deliver one old frame callback.
-    // Ignore that stale timestamp until the browser confirms the new position.
-    if (pendingEditSeek !== null || source.seeking) return true;
-
-    const active = editSegmentAt(time);
-    if (active) return false;
-
-    const next = nextEditSegment(time);
-    if (next) return beginEditSeek(next.start);
+    if (decision.type === 'none' || decision.type === 'keep') return false;
+    if (decision.type === 'hold') return true;
+    if (decision.type === 'jump') return beginEditSeek(decision.target);
 
     source.pause();
     return true;
