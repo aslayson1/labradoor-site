@@ -104,6 +104,8 @@
   let editSegments = [];
   let selectedSegmentId = null;
   let editHistory = [];
+  let pendingEditSeek = null;
+  let trimGesture = null;
   let gesture = null;
   let protectionStyle = 'blur';
   let busy = false;
@@ -260,6 +262,8 @@
     editSegments = [];
     selectedSegmentId = null;
     editHistory = [];
+    pendingEditSeek = null;
+    trimGesture = null;
     busy = false;
     activeProcessingMode = '';
     gesture = null;
@@ -452,6 +456,22 @@
           formatTime(segment.end),
       );
       piece.addEventListener('click', () => selectEditSegment(segment.id, true));
+
+      if (segment.id === selectedSegmentId) {
+        for (const edge of ['start', 'end']) {
+          const handle = document.createElement('span');
+          handle.className = 'edit-trim-handle ' + edge;
+          handle.title = edge === 'start' ? 'Trim clip start' : 'Trim clip end';
+          handle.setAttribute('aria-hidden', 'true');
+          handle.addEventListener('pointerdown', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            beginTrimGesture(event, segment, edge);
+          });
+          piece.appendChild(handle);
+        }
+      }
+
       editTrack.appendChild(piece);
     }
     editTrack.appendChild(editPlayhead);
@@ -508,11 +528,55 @@
     updateEditPlayhead();
   }
 
-  function trimSelectedEdge(edge, rawValue) {
-    const selected = selectedEditSegment();
-    if (!selected || !source.duration) return;
+  function pointerTimeOnEditTrack(event) {
+    if (!source.duration) return 0;
+    const rect = editTrack.getBoundingClientRect();
+    if (!rect.width) return source.currentTime;
+    const ratio = Math.max(
+      0,
+      Math.min(1, (event.clientX - rect.left) / rect.width),
+    );
+    return ratio * source.duration;
+  }
+
+  function beginTrimGesture(event, segment, edge) {
+    if (busy || !source.duration) return;
+    source.pause();
+    selectedSegmentId = segment.id;
+    pushEditHistory();
+    trimGesture = {
+      pointerId: event.pointerId,
+      segmentId: segment.id,
+      edge,
+    };
+    document.body.classList.add('trimming-video');
+  }
+
+  function moveTrimGesture(event) {
+    if (!trimGesture || event.pointerId !== trimGesture.pointerId) return;
+    const segment = editSegments.find(
+      (item) => item.id === trimGesture.segmentId,
+    );
+    if (!segment) return;
+    selectedSegmentId = segment.id;
+    trimSegmentEdge(segment, trimGesture.edge, pointerTimeOnEditTrack(event));
+  }
+
+  function endTrimGesture(event) {
+    if (!trimGesture || event.pointerId !== trimGesture.pointerId) return;
+    trimGesture = null;
+    document.body.classList.remove('trimming-video');
+  }
+
+  window.addEventListener('pointermove', moveTrimGesture);
+  window.addEventListener('pointerup', endTrimGesture);
+  window.addEventListener('pointercancel', endTrimGesture);
+
+  function trimSegmentEdge(segment, edge, rawValue) {
+    if (!segment || !source.duration) return;
     const ordered = sortedEditSegments();
-    const index = ordered.findIndex((segment) => segment.id === selected.id);
+    const index = ordered.findIndex((item) => item.id === segment.id);
+    if (index < 0) return;
     const minimum = Math.max(0.03, frameDuration());
     const value = Math.max(
       0,
@@ -521,25 +585,30 @@
 
     if (edge === 'start') {
       const previousEnd = index > 0 ? ordered[index - 1].end : 0;
-      selected.start = Math.max(
+      segment.start = Math.max(
         previousEnd,
-        Math.min(selected.end - minimum, value),
+        Math.min(segment.end - minimum, value),
       );
-      source.currentTime = selected.start;
+      source.currentTime = segment.start;
     } else {
       const nextStart =
         index < ordered.length - 1
           ? ordered[index + 1].start
           : source.duration;
-      selected.end = Math.min(
+      segment.end = Math.min(
         nextStart,
-        Math.max(selected.start + minimum, value),
+        Math.max(segment.start + minimum, value),
       );
-      source.currentTime = Math.min(selected.end, source.duration);
+      source.currentTime = Math.min(segment.end, source.duration);
     }
+
     resetOutput();
     renderEditTimeline();
     updateTime();
+  }
+
+  function trimSelectedEdge(edge, rawValue) {
+    trimSegmentEdge(selectedEditSegment(), edge, rawValue);
   }
 
   for (const input of [trimStart, trimEnd]) {
@@ -637,25 +706,36 @@
     updateTime();
   });
 
+  function beginEditSeek(target) {
+    if (!Number.isFinite(target)) return false;
+    pendingEditSeek = target;
+    presentedMediaTime = null;
+    cancelSourceAnimation();
+    source.currentTime = Math.max(0, Math.min(source.duration, target));
+    updateTime();
+    return true;
+  }
+
   function ensurePlayableEditPosition() {
     if (!editSegments.length) return false;
     if (editSegmentAt(source.currentTime)) return true;
     const next = nextEditSegment(source.currentTime) || sortedEditSegments()[0];
     if (!next) return false;
-    source.currentTime = next.start;
-    return true;
+    return beginEditSeek(next.start);
   }
 
   function enforceEditedPlayback(time) {
     if (source.paused || !editSegments.length) return false;
+
+    // A seek across a deleted gap can still deliver one old frame callback.
+    // Ignore that stale timestamp until the browser confirms the new position.
+    if (pendingEditSeek !== null || source.seeking) return true;
+
     const active = editSegmentAt(time);
     if (active) return false;
 
     const next = nextEditSegment(time);
-    if (next) {
-      source.currentTime = next.start;
-      return true;
-    }
+    if (next) return beginEditSeek(next.start);
 
     source.pause();
     return true;
@@ -709,13 +789,17 @@
   function animateSource() {
     cancelSourceAnimation();
 
+    if (source.seeking || pendingEditSeek !== null) {
+      updateTime();
+      return;
+    }
+
     const tick = (_timestamp, metadata) => {
       const mediaTime = Number(metadata?.mediaTime);
       if (Number.isFinite(mediaTime)) presentedMediaTime = mediaTime;
       const now = Number.isFinite(mediaTime) ? mediaTime : source.currentTime;
       if (enforceEditedPlayback(now)) {
         updateTime();
-        if (!source.paused && !source.ended) scheduleSourceFrame(tick);
         return;
       }
       updateTime();
@@ -767,10 +851,21 @@
   });
   source.addEventListener('seeking', () => {
     presentedMediaTime = null;
-    animateSource();
+    cancelSourceAnimation();
     for (const tracker of previewTrackers.values()) tracker.seeked = true;
   });
-  source.addEventListener('seeked', animateSource);
+  source.addEventListener('seeked', () => {
+    if (pendingEditSeek !== null) {
+      const tolerance = Math.max(0.05, frameDuration() * 1.5);
+      if (Math.abs(source.currentTime - pendingEditSeek) <= tolerance) {
+        pendingEditSeek = null;
+      } else {
+        source.currentTime = pendingEditSeek;
+        return;
+      }
+    }
+    animateSource();
+  });
   source.addEventListener('loadeddata', animateSource);
   scrub.addEventListener('input', () => {
     if (!source.duration) return;
