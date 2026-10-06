@@ -444,6 +444,52 @@ select:focus {
   box-shadow: inset 0 0 0 2px #111;
 }
 
+.edit-trim-handle {
+  position: absolute;
+  z-index: 5;
+  top: 2px;
+  bottom: 2px;
+  width: 14px;
+  border: 2px solid #111;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.edit-trim-handle.start {
+  left: 2px;
+}
+
+.edit-trim-handle.end {
+  right: 2px;
+}
+
+.edit-trim-handle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 12px;
+  border-radius: 2px;
+  background: #111;
+  transform: translate(-50%, -50%);
+}
+
+body.trimming-video,
+body.trimming-video * {
+  cursor: ew-resize !important;
+  user-select: none !important;
+}
+
+.edit-trim-hint {
+  margin-top: 7px;
+  color: #d6d7da;
+  font-size: 11px;
+}
+
 .edit-playhead {
   position: absolute;
   z-index: 4;
