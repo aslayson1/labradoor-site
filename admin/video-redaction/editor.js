@@ -19,6 +19,18 @@
   const scrub = byId('scrub');
   const timeLabel = byId('time');
   const play = byId('play');
+  const editTrack = byId('editTrack');
+  const editPlayhead = byId('editPlayhead');
+  const editDuration = byId('editDuration');
+  const segmentLabel = byId('segmentLabel');
+  const trimStart = byId('trimStart');
+  const trimEnd = byId('trimEnd');
+  const trimStartValue = byId('trimStartValue');
+  const trimEndValue = byId('trimEndValue');
+  const splitClip = byId('splitClip');
+  const deleteClip = byId('deleteClip');
+  const undoEdit = byId('undoEdit');
+  const resetEdits = byId('resetEdits');
   const manualProcess = byId('manualProcess');
   const processButton = byId('process');
   const replaceButton = byId('replace');
@@ -89,6 +101,9 @@
   let totalFrames = 0;
   let corrections = [];
   let selectedCorrectionId = null;
+  let editSegments = [];
+  let selectedSegmentId = null;
+  let editHistory = [];
   let gesture = null;
   let protectionStyle = 'blur';
   let busy = false;
@@ -242,6 +257,9 @@
     totalFrames = 0;
     corrections = [];
     selectedCorrectionId = null;
+    editSegments = [];
+    selectedSegmentId = null;
+    editHistory = [];
     busy = false;
     activeProcessingMode = '';
     gesture = null;
@@ -287,6 +305,7 @@
       correctionSection.hidden = false;
       scrub.value = '0';
       source.currentTime = 0;
+      initializeVideoEdits();
       updateTime();
       drawFrame();
     };
@@ -327,13 +346,337 @@
   }
   upload.addEventListener('drop', (event) => loadVideo(event.dataTransfer.files[0]));
 
+  function editId() {
+    return crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
+  }
+
+  function cloneEditState() {
+    return {
+      segments: editSegments.map((segment) => ({ ...segment })),
+      selectedSegmentId,
+    };
+  }
+
+  function pushEditHistory() {
+    if (!source.duration || editSegments.length === 0) return;
+    editHistory.push(cloneEditState());
+    if (editHistory.length > 50) editHistory.shift();
+    undoEdit.disabled = false;
+  }
+
+  function initializeVideoEdits() {
+    if (!Number.isFinite(source.duration) || source.duration <= 0) return;
+    editSegments = [{ id: editId(), start: 0, end: source.duration }];
+    selectedSegmentId = editSegments[0].id;
+    editHistory = [];
+    renderEditTimeline();
+  }
+
+  function sortedEditSegments() {
+    return editSegments.slice().sort((a, b) => a.start - b.start);
+  }
+
+  function selectedEditSegment() {
+    return editSegments.find((segment) => segment.id === selectedSegmentId) || null;
+  }
+
+  function editSegmentAt(time) {
+    const epsilon = Math.max(0.002, frameDuration() * 0.45);
+    return (
+      sortedEditSegments().find(
+        (segment) =>
+          time >= segment.start - epsilon && time < segment.end - epsilon,
+      ) || null
+    );
+  }
+
+  function nextEditSegment(time) {
+    const epsilon = Math.max(0.002, frameDuration() * 0.45);
+    return (
+      sortedEditSegments().find(
+        (segment) => segment.start > time + epsilon,
+      ) || null
+    );
+  }
+
+  function keptEditDuration() {
+    return editSegments.reduce(
+      (total, segment) => total + Math.max(0, segment.end - segment.start),
+      0,
+    );
+  }
+
+  function updateEditPlayhead() {
+    if (!source.duration) return;
+    const percent = Math.max(
+      0,
+      Math.min(100, (source.currentTime / source.duration) * 100),
+    );
+    editPlayhead.style.left = percent + '%';
+  }
+
+  function selectEditSegment(id, seek = false) {
+    const segment = editSegments.find((item) => item.id === id);
+    if (!segment) return;
+    selectedSegmentId = segment.id;
+    if (
+      seek &&
+      (source.currentTime < segment.start || source.currentTime > segment.end)
+    ) {
+      source.currentTime = segment.start;
+    }
+    renderEditTimeline();
+  }
+
+  function renderEditTimeline() {
+    if (!editTrack || !source.duration) return;
+    editTrack.replaceChildren();
+
+    const ordered = sortedEditSegments();
+    for (const segment of ordered) {
+      const piece = document.createElement('button');
+      piece.type = 'button';
+      piece.className =
+        'edit-segment' + (segment.id === selectedSegmentId ? ' selected' : '');
+      piece.style.left = (segment.start / source.duration) * 100 + '%';
+      piece.style.width =
+        Math.max(0.2, ((segment.end - segment.start) / source.duration) * 100) +
+        '%';
+      piece.title =
+        formatTime(segment.start) + ' – ' + formatTime(segment.end);
+      piece.setAttribute(
+        'aria-label',
+        'Keep segment ' +
+          formatTime(segment.start) +
+          ' to ' +
+          formatTime(segment.end),
+      );
+      piece.addEventListener('click', () => selectEditSegment(segment.id, true));
+      editTrack.appendChild(piece);
+    }
+    editTrack.appendChild(editPlayhead);
+
+    let selected = selectedEditSegment();
+    if (!selected && ordered.length) {
+      selectedSegmentId = ordered[0].id;
+      selected = ordered[0];
+    }
+
+    editDuration.textContent = formatTime(keptEditDuration()) + ' kept';
+    undoEdit.disabled = editHistory.length === 0;
+    resetEdits.disabled =
+      ordered.length === 1 &&
+      Math.abs(ordered[0].start) < 0.001 &&
+      Math.abs(ordered[0].end - source.duration) < 0.001;
+
+    if (!selected) {
+      segmentLabel.textContent = 'No segment selected';
+      trimStart.disabled = true;
+      trimEnd.disabled = true;
+      splitClip.disabled = true;
+      deleteClip.disabled = true;
+      return;
+    }
+
+    const index = ordered.findIndex((segment) => segment.id === selected.id);
+    segmentLabel.textContent =
+      ordered.length === 1
+        ? 'Full video'
+        : 'Segment ' + (index + 1) + ' of ' + ordered.length;
+
+    trimStart.disabled = busy;
+    trimEnd.disabled = busy;
+    trimStart.min = '0';
+    trimStart.max = String(source.duration);
+    trimStart.step = '0.01';
+    trimStart.value = String(selected.start);
+    trimEnd.min = '0';
+    trimEnd.max = String(source.duration);
+    trimEnd.step = '0.01';
+    trimEnd.value = String(selected.end);
+    trimStartValue.textContent = formatTime(selected.start);
+    trimEndValue.textContent = formatTime(selected.end);
+
+    const at = source.currentTime;
+    const minimum = Math.max(0.03, frameDuration());
+    splitClip.disabled =
+      busy ||
+      at <= selected.start + minimum ||
+      at >= selected.end - minimum ||
+      editSegments.length >= 99;
+    deleteClip.disabled = busy || editSegments.length <= 1;
+    updateEditPlayhead();
+  }
+
+  function trimSelectedEdge(edge, rawValue) {
+    const selected = selectedEditSegment();
+    if (!selected || !source.duration) return;
+    const ordered = sortedEditSegments();
+    const index = ordered.findIndex((segment) => segment.id === selected.id);
+    const minimum = Math.max(0.03, frameDuration());
+    const value = Math.max(
+      0,
+      Math.min(source.duration, Number(rawValue) || 0),
+    );
+
+    if (edge === 'start') {
+      const previousEnd = index > 0 ? ordered[index - 1].end : 0;
+      selected.start = Math.max(
+        previousEnd,
+        Math.min(selected.end - minimum, value),
+      );
+      source.currentTime = selected.start;
+    } else {
+      const nextStart =
+        index < ordered.length - 1
+          ? ordered[index + 1].start
+          : source.duration;
+      selected.end = Math.min(
+        nextStart,
+        Math.max(selected.start + minimum, value),
+      );
+      source.currentTime = Math.min(selected.end, source.duration);
+    }
+    resetOutput();
+    renderEditTimeline();
+    updateTime();
+  }
+
+  for (const input of [trimStart, trimEnd]) {
+    input.addEventListener('pointerdown', () => pushEditHistory());
+    input.addEventListener('keydown', (event) => {
+      if (
+        event.key.startsWith('Arrow') ||
+        event.key === 'Home' ||
+        event.key === 'End'
+      ) {
+        pushEditHistory();
+      }
+    });
+  }
+
+  trimStart.addEventListener('input', () =>
+    trimSelectedEdge('start', trimStart.value),
+  );
+  trimEnd.addEventListener('input', () =>
+    trimSelectedEdge('end', trimEnd.value),
+  );
+
+  splitClip.addEventListener('click', () => {
+    const selected = selectedEditSegment();
+    if (!selected || busy) return;
+    const cut = source.currentTime;
+    const minimum = Math.max(0.03, frameDuration());
+    if (cut <= selected.start + minimum || cut >= selected.end - minimum) {
+      setJobStatus(
+        'Move the playhead inside this segment',
+        'A split needs a little video on both sides of the playhead.',
+        'warn',
+      );
+      return;
+    }
+
+    pushEditHistory();
+    const right = { id: editId(), start: cut, end: selected.end };
+    selected.end = cut;
+    const index = editSegments.indexOf(selected);
+    editSegments.splice(index + 1, 0, right);
+    selectedSegmentId = right.id;
+    resetOutput();
+    renderEditTimeline();
+  });
+
+  deleteClip.addEventListener('click', () => {
+    const selected = selectedEditSegment();
+    if (!selected || busy || editSegments.length <= 1) return;
+
+    pushEditHistory();
+    const orderedBefore = sortedEditSegments();
+    const index = orderedBefore.findIndex(
+      (segment) => segment.id === selected.id,
+    );
+    editSegments = editSegments.filter(
+      (segment) => segment.id !== selected.id,
+    );
+    const ordered = sortedEditSegments();
+    const replacement =
+      ordered[Math.min(index, ordered.length - 1)] || ordered[0];
+    selectedSegmentId = replacement ? replacement.id : null;
+    source.pause();
+    if (replacement) source.currentTime = replacement.start;
+    resetOutput();
+    renderEditTimeline();
+    updateTime();
+  });
+
+  undoEdit.addEventListener('click', () => {
+    if (busy || editHistory.length === 0) return;
+    const previous = editHistory.pop();
+    editSegments = previous.segments.map((segment) => ({ ...segment }));
+    selectedSegmentId = previous.selectedSegmentId;
+    const selected = selectedEditSegment() || sortedEditSegments()[0];
+    if (selected) {
+      source.currentTime = Math.max(
+        selected.start,
+        Math.min(selected.end, source.currentTime),
+      );
+    }
+    resetOutput();
+    renderEditTimeline();
+    updateTime();
+  });
+
+  resetEdits.addEventListener('click', () => {
+    if (busy || !source.duration) return;
+    pushEditHistory();
+    editSegments = [{ id: editId(), start: 0, end: source.duration }];
+    selectedSegmentId = editSegments[0].id;
+    resetOutput();
+    renderEditTimeline();
+    updateTime();
+  });
+
+  function ensurePlayableEditPosition() {
+    if (!editSegments.length) return false;
+    if (editSegmentAt(source.currentTime)) return true;
+    const next = nextEditSegment(source.currentTime) || sortedEditSegments()[0];
+    if (!next) return false;
+    source.currentTime = next.start;
+    return true;
+  }
+
+  function enforceEditedPlayback(time) {
+    if (source.paused || !editSegments.length) return false;
+    const active = editSegmentAt(time);
+    if (active) return false;
+
+    const next = nextEditSegment(time);
+    if (next) {
+      source.currentTime = next.start;
+      return true;
+    }
+
+    source.pause();
+    return true;
+  }
+
   function updateTime() {
     scrub.value = source.duration
       ? String((source.currentTime / source.duration) * 1000)
       : '0';
-    timeLabel.textContent = `${formatTime(source.currentTime)} / ${formatTime(
-      source.duration,
-    )}`;
+    timeLabel.textContent =
+      formatTime(source.currentTime) + ' / ' + formatTime(source.duration);
+    updateEditPlayhead();
+
+    const selected = selectedEditSegment();
+    if (selected) {
+      const minimum = Math.max(0.03, frameDuration());
+      splitClip.disabled =
+        busy ||
+        source.currentTime <= selected.start + minimum ||
+        source.currentTime >= selected.end - minimum ||
+        editSegments.length >= 99;
+    }
   }
 
   function cancelSourceAnimation() {
@@ -364,10 +707,16 @@
     cancelSourceAnimation();
 
     const tick = (_timestamp, metadata) => {
-      updateTime();
       const mediaTime = Number(metadata?.mediaTime);
       if (Number.isFinite(mediaTime)) presentedMediaTime = mediaTime;
-      drawFrame(Number.isFinite(mediaTime) ? mediaTime : source.currentTime);
+      const now = Number.isFinite(mediaTime) ? mediaTime : source.currentTime;
+      if (enforceEditedPlayback(now)) {
+        updateTime();
+        if (!source.paused && !source.ended) scheduleSourceFrame(tick);
+        return;
+      }
+      updateTime();
+      drawFrame(now);
       if (!source.paused && !source.ended) {
         scheduleSourceFrame(tick);
       }
@@ -389,6 +738,7 @@
   play.addEventListener('click', async () => {
     if (source.paused) {
       try {
+        if (!ensurePlayableEditPosition()) return;
         await source.play();
       } catch {
         setJobStatus('Playback could not start', 'Use the timeline to inspect frames.', 'warn');
@@ -1325,6 +1675,10 @@
       all_person_names: false,
       manual_only: manualOnly,
       require_independent_verifier: true,
+      keep_segments: sortedEditSegments().map((segment) => ({
+        start_seconds: segment.start,
+        end_seconds: segment.end,
+      })),
     };
   }
 
@@ -1342,6 +1696,7 @@
       corrections.length === 0 ||
       !currentJob ||
       !terminalStatuses.has(currentJob.status);
+    renderEditTimeline();
     drawFrame();
   }
 
