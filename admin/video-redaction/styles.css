@@ -344,21 +344,6 @@ select:focus {
   cursor: crosshair;
 }
 
-.stage-hint {
-  position: absolute;
-  top: 28px;
-  left: 50%;
-  max-width: calc(100% - 40px);
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.76);
-  color: #fff;
-  font-size: 12px;
-  text-align: center;
-  pointer-events: none;
-  transform: translateX(-50%);
-}
-
 .timeline {
   padding: 15px 18px;
   background: #111;

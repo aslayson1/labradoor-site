@@ -56,7 +56,6 @@
   const result = byId('result');
   const outputMeta = byId('outputMeta');
   const download = byId('download');
-  const hint = byId('hint');
   const ManualTracker = window.LabradoorManualTracker;
   const VideoEdits = window.LabradoorVideoEdits;
   if (!ManualTracker) {
@@ -1350,7 +1349,6 @@
 
     const draft = draftBox();
     if (draft) drawBox(draft, '#ffcf32', true, false);
-    hint.hidden = !sourceFile || busy;
   }
 
   function canvasPoint(event) {
