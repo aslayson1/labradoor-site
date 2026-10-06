@@ -563,8 +563,9 @@
   );
 
   splitClip.addEventListener('click', () => {
-    const selected = selectedEditSegment();
+    const selected = editSegmentAt(source.currentTime) || selectedEditSegment();
     if (!selected || busy) return;
+    selectedSegmentId = selected.id;
     const cut = source.currentTime;
     const minimum = Math.max(0.03, frameDuration());
     if (cut <= selected.start + minimum || cut >= selected.end - minimum) {
@@ -668,14 +669,16 @@
       formatTime(source.currentTime) + ' / ' + formatTime(source.duration);
     updateEditPlayhead();
 
-    const selected = selectedEditSegment();
-    if (selected) {
+    const segmentAtPlayhead = editSegmentAt(source.currentTime);
+    if (segmentAtPlayhead) {
       const minimum = Math.max(0.03, frameDuration());
       splitClip.disabled =
         busy ||
-        source.currentTime <= selected.start + minimum ||
-        source.currentTime >= selected.end - minimum ||
+        source.currentTime <= segmentAtPlayhead.start + minimum ||
+        source.currentTime >= segmentAtPlayhead.end - minimum ||
         editSegments.length >= 99;
+    } else {
+      splitClip.disabled = true;
     }
   }
 
@@ -2350,7 +2353,13 @@
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ corrections: correctionPayload() }),
+          body: JSON.stringify({
+            corrections: correctionPayload(),
+            keep_segments: sortedEditSegments().map((segment) => ({
+              start_seconds: segment.start,
+              end_seconds: segment.end,
+            })),
+          }),
         },
       );
       if (!response.ok) throw new Error(await readError(response));
