@@ -367,7 +367,7 @@
           // client_reference_id values (up to 200 characters). Encode the
           // signed, non-PII Moment reference without weakening its HMAC.
           var encoded = 'mref_' + window.btoa(token)
-            .replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');
+            .split('+').join('-').split('/').join('_').replace(/=+$/, '');
           if (encoded.length <= 200) {
             url.searchParams.set('client_reference_id', encoded);
             anchor.href = url.toString();
