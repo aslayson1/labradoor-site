@@ -47,3 +47,10 @@ test('invalid inbound referral does not modify checkout URL', () => {
   assert.equal(result.anchors[0].href, link);
   assert.equal(result.anchors[1].href, 'https://app.labradoor.ai/signup');
 });
+
+
+test('Business recovery link points to first-party activation without payment identifiers', () => {
+  assert.match(html, /href="https:\/\/api\.labradoor\.ai\/subscription\/claim"/);
+  assert.match(html, /Activate your Business access/);
+  assert.doesNotMatch(html, /api\.labradoor\.ai\/subscription\/claim\?[^"']+(?:session|token|password|mref)=/);
+});
