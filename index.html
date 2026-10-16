@@ -1752,5 +1752,54 @@
       </div>
     </div>
   </footer>
+  <!-- Preserve first-party Content Studio attribution through the marketing site.
+       App Store downloads cannot be attributed through this web query alone. -->
+  <script>
+  (function () {
+    'use strict';
+    var key = 'labradoor_content_studio_mref';
+    var pattern = /^v1\.[0-9a-f-]{36}\.[0-9a-f-]{36}\.[A-Za-z0-9_-]{43}$/i;
+    var incoming = new URLSearchParams(window.location.search).get('mref');
+    var token = null;
+    try {
+      if (incoming && pattern.test(incoming)) {
+        window.sessionStorage.setItem(key, JSON.stringify({ token: incoming, time: Date.now() }));
+      }
+      var saved = JSON.parse(window.sessionStorage.getItem(key) || 'null');
+      if (saved && typeof saved.time === 'number' && Date.now() - saved.time <= 30 * 86400000 && pattern.test(saved.token)) {
+        token = saved.token;
+      } else {
+        window.sessionStorage.removeItem(key);
+      }
+    } catch (error) {
+      token = incoming && pattern.test(incoming) ? incoming : null;
+    }
+    if (!token) return;
+    // This explicitly opens an ALREADY INSTALLED iOS app with the signed
+    // campaign reference. App Store installs cannot preserve browser session
+    // storage or a URL scheme across installation, so we do not claim that.
+    var heroActions = document.querySelector('.hero-cta');
+    if (heroActions && !document.getElementById('open-labradoor-tracked')) {
+      var appLink = document.createElement('a');
+      appLink.id = 'open-labradoor-tracked';
+      appLink.className = 'btn btn-large';
+      appLink.style.cssText = 'background:#fff;color:#303452;border:1px solid #d7dbea;';
+      appLink.href = 'labradoor://open?mref=' + encodeURIComponent(token);
+      appLink.textContent = 'Already have Labradoor? Open app';
+      appLink.setAttribute('aria-label', 'Open installed Labradoor app with this referral');
+      heroActions.appendChild(appLink);
+    }
+    document.querySelectorAll('a[href]').forEach(function (anchor) {
+      try {
+        var url = new URL(anchor.href, window.location.href);
+        if ((url.hostname === 'app.labradoor.ai' && url.protocol === 'https:') ||
+            (url.origin === window.location.origin && (url.pathname === '/business' || url.pathname === '/business.html'))) {
+          url.searchParams.set('mref', token);
+          anchor.href = url.toString();
+        }
+      } catch (error) {}
+    });
+  })();
+  </script>
 </body>
 </html>

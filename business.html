@@ -316,6 +316,9 @@
           <div class="cta-center">
             <a href="https://buy.stripe.com/00wfZi93f2Pc4Zx6ZE9Ve01" class="btn btn-large">Get Labradoor Business</a>
             <p class="fine-print">Secure checkout via Stripe. Cancel anytime.</p>
+            <p class="fine-print" style="margin-top:14px;">
+              Already purchased? <a href="https://api.labradoor.ai/subscription/claim" style="color:#5f58d5;text-decoration:underline;font-weight:700;">Activate your Business access</a>
+            </p>
           </div>
         </div>
       </div>
@@ -332,5 +335,50 @@
       </div>
     </div>
   </footer>
+  <!-- Preserve first-party Content Studio attribution through the marketing site.
+       App Store downloads cannot be attributed through this web query alone. -->
+  <script>
+  (function () {
+    'use strict';
+    var key = 'labradoor_content_studio_mref';
+    var pattern = /^v1\.[0-9a-f-]{36}\.[0-9a-f-]{36}\.[A-Za-z0-9_-]{43}$/i;
+    var incoming = new URLSearchParams(window.location.search).get('mref');
+    var token = null;
+    try {
+      if (incoming && pattern.test(incoming)) {
+        window.sessionStorage.setItem(key, JSON.stringify({ token: incoming, time: Date.now() }));
+      }
+      var saved = JSON.parse(window.sessionStorage.getItem(key) || 'null');
+      if (saved && typeof saved.time === 'number' && Date.now() - saved.time <= 30 * 86400000 && pattern.test(saved.token)) {
+        token = saved.token;
+      } else {
+        window.sessionStorage.removeItem(key);
+      }
+    } catch (error) {
+      token = incoming && pattern.test(incoming) ? incoming : null;
+    }
+    if (!token) return;
+    document.querySelectorAll('a[href]').forEach(function (anchor) {
+      try {
+        var url = new URL(anchor.href, window.location.href);
+        if ((url.hostname === 'app.labradoor.ai' && url.protocol === 'https:') ||
+            (url.origin === window.location.origin && (url.pathname === '/business' || url.pathname === '/business.html'))) {
+          url.searchParams.set('mref', token);
+          anchor.href = url.toString();
+        } else if (url.protocol === 'https:' && url.hostname === 'buy.stripe.com') {
+          // Stripe Payment Links accept alphanumeric/dash/underscore
+          // client_reference_id values (up to 200 characters). Encode the
+          // signed, non-PII Moment reference without weakening its HMAC.
+          var encoded = 'mref_' + window.btoa(token)
+            .split('+').join('-').split('/').join('_').replace(/=+$/, '');
+          if (encoded.length <= 200) {
+            url.searchParams.set('client_reference_id', encoded);
+            anchor.href = url.toString();
+          }
+        }
+      } catch (error) {}
+    });
+  })();
+  </script>
 </body>
 </html>
