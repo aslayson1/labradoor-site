@@ -1775,6 +1775,20 @@
       token = incoming && pattern.test(incoming) ? incoming : null;
     }
     if (!token) return;
+    // This explicitly opens an ALREADY INSTALLED iOS app with the signed
+    // campaign reference. App Store installs cannot preserve browser session
+    // storage or a URL scheme across installation, so we do not claim that.
+    var heroActions = document.querySelector('.hero-cta');
+    if (heroActions && !document.getElementById('open-labradoor-tracked')) {
+      var appLink = document.createElement('a');
+      appLink.id = 'open-labradoor-tracked';
+      appLink.className = 'btn btn-large';
+      appLink.style.cssText = 'background:#fff;color:#303452;border:1px solid #d7dbea;';
+      appLink.href = 'labradoor://open?mref=' + encodeURIComponent(token);
+      appLink.textContent = 'Already have Labradoor? Open app';
+      appLink.setAttribute('aria-label', 'Open installed Labradoor app with this referral');
+      heroActions.appendChild(appLink);
+    }
     document.querySelectorAll('a[href]').forEach(function (anchor) {
       try {
         var url = new URL(anchor.href, window.location.href);
