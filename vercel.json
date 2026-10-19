@@ -52,6 +52,21 @@
           "value": "DENY"
         }
       ]
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "(?<preview>.*\\.vercel\\.app)"
+        }
+      ],
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
     }
   ],
   "rewrites": [
@@ -82,6 +97,10 @@
     {
       "source": "/api/content/track",
       "destination": "https://www.withmoment.io/api/content/track"
+    },
+    {
+      "source": "/api/idx/track",
+      "destination": "https://www.withmoment.io/api/idx/track"
     }
   ]
 }

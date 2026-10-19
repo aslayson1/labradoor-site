@@ -3,4 +3,4 @@ Allow: /
 Disallow: /admin/
 Disallow: /api/
 
-Sitemap: https://labradoor.ai/sitemap.xml
+Sitemap: https://www.labradoor.ai/sitemap.xml
