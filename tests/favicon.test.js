@@ -1,0 +1,32 @@
+const test = require("node:test")
+const assert = require("node:assert/strict")
+const fs = require("node:fs")
+const path = require("node:path")
+
+const root = path.resolve(__dirname, "..")
+const read = name => fs.readFileSync(path.join(root, name), "utf8")
+
+test("marketing homepage advertises dog-head PNG and scalable SVG favicons", () => {
+  const html = read("index.html")
+  assert.match(html, /<link rel="icon"[^>]*href="\/doghead-icon\.png"[^>]*>/)
+  assert.match(html, /<link rel="icon"[^>]*href="\/favicon\.svg"[^>]*type="image\/svg\+xml"/)
+  assert.match(html, /<link rel="apple-touch-icon"[^>]*href="\/doghead-icon\.png"/)
+  assert.match(html, /<link rel="manifest" href="\/site\.webmanifest"/)
+})
+test("self-contained SVG is a scalable version of the committed dog-head artwork", () => {
+  const svg = read("favicon.svg")
+  assert.match(svg, /<svg[^>]*viewBox="0 0 160 160"/)
+  const embedded = svg.match(/href="data:image\/png;base64,([A-Za-z0-9+/=]+)"/)
+  assert.ok(embedded, "SVG should embed its dog-head image without cross-domain assets")
+  const png = Buffer.from(embedded[1], "base64")
+  assert.deepEqual(png, fs.readFileSync(path.join(root, "doghead-icon.png")))
+  assert.equal(png.readUInt32BE(16), 160)
+  assert.equal(png.readUInt32BE(20), 160)
+})
+test("legacy favicon path redirects to the same mark and site manifest remains valid", () => {
+  const config = JSON.parse(read("vercel.json"))
+  assert.ok(config.redirects?.some(x => x.source === "/favicon.ico" && x.destination === "/doghead-icon.png"))
+  const manifest = JSON.parse(read("site.webmanifest"))
+  assert.equal(manifest.name, "Labradoor")
+  assert.ok(manifest.icons.some(x => x.src === "/doghead-icon.png" && x.type === "image/png"))
+})
