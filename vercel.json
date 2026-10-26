@@ -102,5 +102,12 @@
       "source": "/api/idx/track",
       "destination": "https://www.withmoment.io/api/idx/track"
     }
+  ],
+  "redirects": [
+    {
+      "source": "/favicon.ico",
+      "destination": "/doghead-icon.png",
+      "permanent": false
+    }
   ]
 }

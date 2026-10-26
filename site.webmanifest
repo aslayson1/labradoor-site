@@ -1,0 +1,16 @@
+{
+  "name": "Labradoor",
+  "short_name": "Labradoor",
+  "icons": [
+    {
+      "src": "/doghead-icon.png",
+      "sizes": "160x160",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "/",
+  "display": "browser",
+  "theme_color": "#6B5CE7",
+  "background_color": "#ffffff"
+}
